@@ -107,6 +107,18 @@ class DistilBERTEncoder(TextEncoder):
         
         # Store hidden size
         self._hidden_size = 768
+        
+        # Move to device
+        self.to(device)
+    
+    def to(self, device):
+        """Move the model to the specified device."""
+        self.device_name = str(device)
+        self.bert.to(device)
+        if self.projection is not None:
+            self.projection.to(device)
+        super().to(device)
+        return self
     
     def _freeze_layers(self, num_layers: int):
         """
