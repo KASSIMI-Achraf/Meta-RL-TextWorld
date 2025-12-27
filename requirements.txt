@@ -1,0 +1,34 @@
+# Core dependencies
+textworld>=1.5.0
+torch>=2.0.0
+transformers>=4.35.0
+gymnasium>=0.29.0
+numpy>=1.24.0
+
+# Configuration and logging
+pyyaml>=6.0
+tensorboard>=2.14.0
+tqdm>=4.66.0
+
+# Testing
+pytest>=7.4.0
+pytest-cov>=4.1.0
+
+# Visualization
+matplotlib>=3.8.0
+seaborn>=0.13.0
+
+# Utilities
+click>=8.1.0
+colorama>=0.4.6
+
+# Note: 'higher' library removed - using first-order MAML (FOMAML) instead
+# which doesn't require differentiable optimization
+
+# Utilities
+click>=8.1.0
+colorama>=0.4.6
+
+# Reinforcement Learning
+stable-baselines3>=2.0.0
+shimmy>=0.2.1

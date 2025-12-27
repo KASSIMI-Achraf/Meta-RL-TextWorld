@@ -1,0 +1,55 @@
+{
+    "rooms": {
+        "cookhouse": {
+            "description": "Well, here we are in a cookhouse. You try to gain information on your surroundings by using a technique you call 'looking.'\n\n You can see a chest.[if c_0 is open and there is something in the c_0] The chest contains [a list of things in the c_0].[end if][if c_0 is open and the c_0 contains nothing] Empty! What kind of nightmare TextWorld is this?[end if]\n\n There is [if d_3 is open]an open[otherwise]a closed[end if] gateway leading east. There is an exit to the south. Don't worry, it is unblocked. You need an unguarded exit? You should try going west.",
+            "exits": {},
+            "items": []
+        },
+        "bedroom": {
+            "description": "You arrive in a bedroom. A typical one.\n\n\n\nThere is an unguarded exit to the east. You don't like doors? Why not try going south, that entranceway is unblocked.",
+            "exits": {},
+            "items": []
+        },
+        "pantry": {
+            "description": "You arrive in a pantry. An usual kind of place.\n\n You see [if c_1 is locked]a locked[else if c_1 is open]an opened[otherwise]a closed[end if] display here.[if c_1 is open and there is something in the c_1] The display contains [a list of things in the c_1].[end if][if c_1 is open and the c_1 contains nothing] The display is empty! What a waste of a day![end if] [if c_2 is locked]A locked[else if c_2 is open]An open[otherwise]A closed[end if] trunk is here.[if c_2 is open and there is something in the c_2] The trunk contains [a list of things in the c_2]. Something scurries by right in the corner of your eye. Probably nothing.[end if][if c_2 is open and the c_2 contains nothing] Empty! What kind of nightmare TextWorld is this?[end if] You make out a counter. [if there is something on the s_0]On the counter you see [a list of things on the s_0]. Classic TextWorld.[end if][if there is nothing on the s_0]Unfortunately, there isn't a thing on it.[end if]\n\n There is [if d_2 is open]an open[otherwise]a closed[end if] gate leading north. There is [if d_3 is open]an open[otherwise]a closed[end if] gateway leading west. You don't like doors? Why not try going south, that entranceway is unblocked.",
+            "exits": {},
+            "items": []
+        },
+        "spare room": {
+            "description": "Welcome to the spare room.\n\n You make out a toolbox.[if c_3 is open and there is something in the c_3] The toolbox contains [a list of things in the c_3].[end if][if c_3 is open and the c_3 contains nothing] The toolbox is empty, what a horrible day![end if]\n\nYou don't like doors? Why not try going north, that entranceway is unblocked. You need an unblocked exit? You should try going west.",
+            "exits": {},
+            "items": []
+        },
+        "office": {
+            "description": "You find yourself in an office.\n\n You can see [if c_4 is locked]a locked[else if c_4 is open]an opened[otherwise]a closed[end if] box right there by you.[if c_4 is open and there is something in the c_4] The box contains [a list of things in the c_4]. I mean, just wow! Isn't TextWorld just the best?[end if][if c_4 is open and the c_4 contains nothing] Empty! What kind of nightmare TextWorld is this?[end if] You can see a chair. [if there is something on the s_1]You see [a list of things on the s_1] on the chair. Something scurries by right in the corner of your eye. Probably nothing.[end if][if there is nothing on the s_1]But the thing is empty, unfortunately. You move on, clearly depressed by your TextWorld experience.[end if]\n\nThere is an unblocked exit to the east. There is an unblocked exit to the north.",
+            "exits": {},
+            "items": []
+        },
+        "attic": {
+            "description": "You find yourself in an attic. An ordinary kind of place.\n\n\n\n There is [if d_1 is open]an open[otherwise]a closed[end if] hatch leading south. There is [if d_0 is open]an open[otherwise]a closed[end if] passageway leading west.",
+            "exits": {},
+            "items": []
+        },
+        "parlor": {
+            "description": "You are in a parlor. It seems to be pretty typical here. You begin to take stock of what's in the room.\n\n\n\n There is [if d_0 is open]an open[otherwise]a closed[end if] passageway leading east. There is an unblocked exit to the west.",
+            "exits": {},
+            "items": []
+        },
+        "canteen": {
+            "description": "You've entered a canteen. You begin looking for stuff.\n\n\n\nYou need an unguarded exit? You should try going east.",
+            "exits": {},
+            "items": []
+        },
+        "kitchenette": {
+            "description": "You arrive in a kitchenette. An usual one. You start to take note of what's in the room.\n\n\n\n There is [if d_2 is open]an open[otherwise]a closed[end if] gate leading south. There is [if d_1 is open]an open[otherwise]a closed[end if] hatch leading north.",
+            "exits": {},
+            "items": []
+        },
+        "vault": {
+            "description": "You arrive in a vault. An usual kind of place. You decide to just list off a complete list of everything you see in the room, because hey, why not?\n\n Hey, want to see a suitcase? Look over there, a suitcase.[if c_5 is open and there is something in the c_5] The suitcase contains [a list of things in the c_5].[end if][if c_5 is open and the c_5 contains nothing] Empty! What kind of nightmare TextWorld is this?[end if] You see a table. The table is normal.[if there is something on the s_2] On the table you see [a list of things on the s_2].[end if][if there is nothing on the s_2] But there isn't a thing on it.[end if] You hear a noise behind you and spin around, but you can't see anything other than a stand. What a coincidence, weren't you just thinking about a stand? [if there is something on the s_3]On the stand you see [a list of things on the s_3].[end if][if there is nothing on the s_3]But the thing is empty.[end if]\n\nThere is an unblocked exit to the north.",
+            "exits": {},
+            "items": []
+        }
+    },
+    "player_start": "unknown"
+}

@@ -1,0 +1,55 @@
+{
+    "rooms": {
+        "cellar": {
+            "description": "Well, here we are in a cellar.\n\n You see a rack. [if there is something on the s_0]On the rack you can make out [a list of things on the s_0].[end if][if there is nothing on the s_0]But the thing hasn't got anything on it. Hm. Oh well[end if]\n\nThere is an unguarded exit to the west.",
+            "exits": {},
+            "items": []
+        },
+        "scullery": {
+            "description": "You've entered a scullery. You can barely contain your excitement.\n\n\n\n There is [if d_3 is open]an open[otherwise]a closed[end if] gate leading north. There is an unblocked exit to the east.",
+            "exits": {},
+            "items": []
+        },
+        "cubicle": {
+            "description": "I never took you for the sort of person who would show up in a cubicle, but I guess I was wrong. You start to take note of what's in the room.\n\n You bend down to tie your shoe. When you stand up, you notice a coffer.[if c_0 is open and there is something in the c_0] The coffer contains [a list of things in the c_0].[end if][if c_0 is open and the c_0 contains nothing] The coffer is empty, what a horrible day![end if] You can make out [if c_1 is locked]a locked[else if c_1 is open]an opened[otherwise]a closed[end if] trunk.[if c_1 is open and there is something in the c_1] The trunk contains [a list of things in the c_1].[end if][if c_1 is open and the c_1 contains nothing] The trunk is empty, what a horrible day![end if] Oh, great. Here's a stand. The stand is usual.[if there is something on the s_1] On the stand you can make out [a list of things on the s_1]. You shudder, but continue examining the room.[end if][if there is nothing on the s_1] Unfortunately, there isn't a thing on it.[end if]\n\n There is [if d_1 is open]an open[otherwise]a closed[end if] door leading east. There is [if d_2 is open]an open[otherwise]a closed[end if] hatch leading west.",
+            "exits": {},
+            "items": []
+        },
+        "office": {
+            "description": "A laminated board tells you that you are now in the office.\n\n You can see [if c_2 is locked]a locked[else if c_2 is open]an opened[otherwise]a closed[end if] bureau, which looks normal, close by.[if c_2 is open and there is something in the c_2] The bureau contains [a list of things in the c_2]. You idly wonder how they came up with the name TextWorld for this place. It's pretty fitting.[end if][if c_2 is open and the c_2 contains nothing] What a letdown! The bureau is empty![end if]\n\n There is [if d_2 is open]an open[otherwise]a closed[end if] hatch leading east. There is [if d_3 is open]an open[otherwise]a closed[end if] gate leading south.",
+            "exits": {},
+            "items": []
+        },
+        "closet": {
+            "description": "You are in a closet. An ordinary one.\n\n You make out [if c_3 is locked]a locked[else if c_3 is open]an opened[otherwise]a closed[end if] cabinet.[if c_3 is open and there is something in the c_3] The cabinet contains [a list of things in the c_3]. You can't wait to tell the folks at home about this![end if][if c_3 is open and the c_3 contains nothing] The cabinet is empty! This is the worst thing that could possibly happen, ever![end if]\n\n There is [if d_0 is open]an open[otherwise]a closed[end if] portal leading east. There is [if d_1 is open]an open[otherwise]a closed[end if] door leading west. You don't like doors? Why not try going north, that entranceway is unblocked. There is an exit to the south. Don't worry, it is unguarded.",
+            "exits": {},
+            "items": []
+        },
+        "kitchenette": {
+            "description": "Ah, the kitchenette. This is some kind of kitchenette, really great typical vibes in this place, a wonderful typical atmosphere.\n\n You make out [if c_4 is locked]a locked[else if c_4 is open]an opened[otherwise]a closed[end if] fridge.[if c_4 is open and there is something in the c_4] The fridge contains [a list of things in the c_4]. I mean, just wow! Isn't TextWorld just the best?[end if][if c_4 is open and the c_4 contains nothing] What a letdown! The fridge is empty![end if]\n\n There is [if d_0 is open]an open[otherwise]a closed[end if] portal leading west. You don't like doors? Why not try going north, that entranceway is unblocked. You don't like doors? Why not try going south, that entranceway is unblocked.",
+            "exits": {},
+            "items": []
+        },
+        "recreation zone": {
+            "description": "You find yourself in a recreation zone. A standard one.\n\n\n\nYou need an unblocked exit? You should try going south. You need an unblocked exit? You should try going west.",
+            "exits": {},
+            "items": []
+        },
+        "chamber": {
+            "description": "You've entered a chamber. The room is well lit.\n\n\n\nYou don't like doors? Why not try going east, that entranceway is unblocked. You need an unblocked exit? You should try going south.",
+            "exits": {},
+            "items": []
+        },
+        "pantry": {
+            "description": "You're now in the pantry. You begin to take stock of what's in the room.\n\n\n\nThere is an exit to the north. Don't worry, it is unguarded.",
+            "exits": {},
+            "items": []
+        },
+        "attic": {
+            "description": "You've entered an attic. You can barely contain your excitement.\n\n You can see [if c_5 is locked]a locked[else if c_5 is open]an opened[otherwise]a closed[end if] toolbox.[if c_5 is open and there is something in the c_5] The toolbox contains [a list of things in the c_5].[end if][if c_5 is open and the c_5 contains nothing] Empty! What kind of nightmare TextWorld is this?[end if] You make out a workbench. [if there is something on the s_2]You see [a list of things on the s_2] on the workbench.[end if][if there is nothing on the s_2]But there isn't a thing on it.[end if] You see a table. You shudder, but continue examining the table. [if there is something on the s_3]You see [a list of things on the s_3] on the table.[end if][if there is nothing on the s_3]Looks like someone's already been here and taken everything off it, though. Oh! Why couldn't there just be stuff on it?[end if]\n\nThere is an unguarded exit to the north.",
+            "exits": {},
+            "items": []
+        }
+    },
+    "player_start": "unknown"
+}

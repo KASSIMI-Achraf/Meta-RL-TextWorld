@@ -1,0 +1,62 @@
+# Evaluation Configuration
+
+# Checkpoint to load
+checkpoint_path: "checkpoints/best_model.pt"
+
+# Evaluation settings
+evaluation:
+  # Number of test tasks to evaluate
+  num_test_tasks: 30
+  
+  # Adaptation episodes to test (will generate curves)
+  adaptation_steps: [0, 1, 2, 5, 10, 20]
+  
+  # Number of evaluation episodes after adaptation
+  num_eval_episodes: 10
+  
+  # Maximum steps per episode
+  max_episode_steps: 100
+
+# Baseline comparisons
+baselines:
+  # Run random agent baseline
+  random_agent: true
+  
+  # Run from-scratch RL baseline (train on test task)
+  from_scratch: true
+  
+  # Number of episodes for from-scratch training
+  from_scratch_episodes: 50
+
+# Metrics to compute
+metrics:
+  # Success rate (proportion of games won)
+  success_rate: true
+  
+  # Average reward
+  average_reward: true
+  
+  # Sample efficiency (episodes to reach threshold)
+  sample_efficiency: true
+  sample_efficiency_threshold: 0.8
+  
+  # Reward curves over adaptation
+  reward_curves: true
+
+# Output settings
+output:
+  results_dir: "results"
+  save_trajectories: false
+  save_plots: true
+  
+# Logging
+logging:
+  verbose: true
+  log_file: "results/evaluation.log"
+
+# Reproducibility
+seed: 42
+num_seeds: 3  # Run evaluation with multiple seeds
+
+# Device
+device: "auto"

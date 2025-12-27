@@ -1,0 +1,55 @@
+{
+    "rooms": {
+        "basement": {
+            "description": "You are in a basement. I guess you better just go and list everything you see here.\n\n Oh, great. Here's a counter. [if there is something on the s_0]You see [a list of things on the s_0] on the counter. There's something strange about this being here, but you can't put your finger on it.[end if][if there is nothing on the s_0]But oh no! there's nothing on this piece of junk. It would have been so cool if there was stuff on the counter.[end if]\n\n There is [if d_0 is open]an open[otherwise]a closed[end if] portal leading north. You don't like doors? Why not try going south, that entranceway is unblocked. You don't like doors? Why not try going west, that entranceway is unblocked.",
+            "exits": {},
+            "items": []
+        },
+        "kitchenette": {
+            "description": "Well I'll be, you are in the place we're calling the kitchenette. You begin to take stock of what's here.\n\n You see [if c_0 is locked]a locked[else if c_0 is open]an opened[otherwise]a closed[end if] cabinet in the room.[if c_0 is open and there is something in the c_0] The cabinet contains [a list of things in the c_0]. Now that's what I call TextWorld![end if][if c_0 is open and the c_0 contains nothing] The cabinet is empty, what a horrible day![end if]\n\nThere is an unblocked exit to the east.",
+            "exits": {},
+            "items": []
+        },
+        "cookery": {
+            "description": "You find yourself in a cookery. An ordinary kind of place.\n\n You make out a fridge. You idly wonder how they came up with the name TextWorld for this place. It's pretty fitting.[if c_1 is open and there is something in the c_1] The fridge contains [a list of things in the c_1].[end if][if c_1 is open and the c_1 contains nothing] The fridge is empty! What a waste of a day![end if]\n\n There is [if d_3 is open]an open[otherwise]a closed[end if] hatch leading south. There is [if d_4 is open]an open[otherwise]a closed[end if] gate leading west.",
+            "exits": {},
+            "items": []
+        },
+        "office": {
+            "description": "You find yourself in an office. A standard one.\n\n You can see a table. The table is typical.[if there is something on the s_1] On the table you can see [a list of things on the s_1].[end if][if there is nothing on the s_1] However, the table, like an empty table, has nothing on it. Hm. Oh well[end if]\n\n There is [if d_4 is open]an open[otherwise]a closed[end if] gate leading east. There is [if d_5 is open]an open[otherwise]a closed[end if] passageway leading south.",
+            "exits": {},
+            "items": []
+        },
+        "kitchen": {
+            "description": "You arrive in a kitchen. I guess you better just go and list everything you see here.\n\n You can see a freezer.[if c_2 is open and there is something in the c_2] The freezer contains [a list of things in the c_2].[end if][if c_2 is open and the c_2 contains nothing] The freezer is empty, what a horrible day![end if] You can make out a board. [if there is something on the s_2]You see [a list of things on the s_2] on the board. Wow! Just like in the movies![end if][if there is nothing on the s_2]The board appears to be empty. Aw, and here you were, all excited for there to be things on it![end if] You hear a noise behind you and spin around, but you can't see anything other than a plate. The plate is standard.[if there is something on the s_3] On the plate you can see [a list of things on the s_3].[end if][if there is nothing on the s_3] However, the plate, like an empty plate, has nothing on it. Hm. Oh well[end if]\n\n There is [if d_1 is open]an open[otherwise]a closed[end if] gateway leading west. You need an unblocked exit? You should try going south.",
+            "exits": {},
+            "items": []
+        },
+        "launderette": {
+            "description": "You are in a launderette. An ordinary kind of place. I guess you better just go and list everything you see here.\n\n\n\n There is [if d_2 is open]an open[otherwise]a closed[end if] door leading north. There is [if d_1 is open]an open[otherwise]a closed[end if] gateway leading east.",
+            "exits": {},
+            "items": []
+        },
+        "attic": {
+            "description": "You find yourself in an attic. A typical kind of place. The room seems oddly familiar, as though it were only superficially different from the other rooms in the building.\n\n You see a crate. Something scurries by right in the corner of your eye. Probably nothing.[if c_3 is open and there is something in the c_3] The crate contains [a list of things in the c_3]. Huh, weird.[end if][if c_3 is open and the c_3 contains nothing] The crate is empty! What a waste of a day![end if] Were you looking for a shelf? Because look over there, it's a shelf. [if there is something on the s_4]You see [a list of things on the s_4] on the shelf.[end if][if there is nothing on the s_4]But there isn't a thing on it. What, you think everything in TextWorld should have stuff on it?[end if]\n\nThere is an exit to the north. Don't worry, it is unguarded.",
+            "exits": {},
+            "items": []
+        },
+        "scullery": {
+            "description": "You find yourself in a scullery. An usual kind of place.\n\n\n\n There is [if d_0 is open]an open[otherwise]a closed[end if] portal leading south. There is [if d_5 is open]an open[otherwise]a closed[end if] passageway leading north.",
+            "exits": {},
+            "items": []
+        },
+        "studio": {
+            "description": "You arrive in a studio. An usual kind of place.\n\n You see a gleam over in a corner, where you can see a bookshelf. [if there is something on the s_5]On the bookshelf you make out [a list of things on the s_5].[end if][if there is nothing on the s_5]But the thing is empty. Sometimes, just sometimes, TextWorld can just be the worst.[end if]\n\nYou don't like doors? Why not try going north, that entranceway is unguarded.",
+            "exits": {},
+            "items": []
+        },
+        "cookhouse": {
+            "description": "You are in a cookhouse. A standard kind of place.\n\n\n\n There is [if d_3 is open]an open[otherwise]a closed[end if] hatch leading north. There is [if d_2 is open]an open[otherwise]a closed[end if] door leading south.",
+            "exits": {},
+            "items": []
+        }
+    },
+    "player_start": "unknown"
+}

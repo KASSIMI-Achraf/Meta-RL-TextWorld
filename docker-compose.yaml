@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  textworld:
+    image: marccote19/textworld
+    container_name: my-textworld
+    volumes:
+      # Mount the project directory into the container
+      - .:/workspace
+    working_dir: /workspace
+    # Keep container running
+    tty: true
+    stdin_open: true
+    ports:
+      - "8080:8080"
+    # GPU support (uncomment if using CUDA)
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]

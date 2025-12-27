@@ -1,0 +1,55 @@
+{
+    "rooms": {
+        "cookery": {
+            "description": "You've just walked into a cookery.\n\n\n\nYou need an unguarded exit? You should try going east. You need an unguarded exit? You should try going north. You need an unblocked exit? You should try going south. You need an unblocked exit? You should try going west.",
+            "exits": {},
+            "items": []
+        },
+        "shower": {
+            "description": "You find yourself in a shower. An ordinary kind of place. Okay, just remember what you're here to do, and everything will go great.\n\n You can make out a bench. The bench is ordinary.[if there is something on the s_0] On the bench you make out [a list of things on the s_0].[end if][if there is nothing on the s_0] Looks like someone's already been here and taken everything off it, though.[end if]\n\nYou don't like doors? Why not try going east, that entranceway is unguarded. There is an unblocked exit to the north.",
+            "exits": {},
+            "items": []
+        },
+        "spare room": {
+            "description": "You're now in a spare room. You decide to start listing off everything you see in the room, as if you were in a text adventure.\n\n You can make out a coffer. Classic TextWorld.[if c_0 is open and there is something in the c_0] The coffer contains [a list of things in the c_0].[end if][if c_0 is open and the c_0 contains nothing] Empty! What kind of nightmare TextWorld is this?[end if] You can see a chest. Now why would someone leave that there?[if c_1 is open and there is something in the c_1] The chest contains [a list of things in the c_1].[end if][if c_1 is open and the c_1 contains nothing] The chest is empty! What a waste of a day![end if] You scan the room for a suitcase, and you find a suitcase.[if c_2 is open and there is something in the c_2] The suitcase contains [a list of things in the c_2].[end if][if c_2 is open and the c_2 contains nothing] What a letdown! The suitcase is empty![end if] You smell a lovely smell, and follow it to a workbench. [if there is something on the s_1]You see [a list of things on the s_1] on the workbench.[end if][if there is nothing on the s_1]But the thing is empty, unfortunately.[end if]\n\nThere is an unblocked exit to the east. There is an unblocked exit to the south. There is an unguarded exit to the west.",
+            "exits": {},
+            "items": []
+        },
+        "garage": {
+            "description": "You arrive in a garage. An ordinary kind of place. You begin to take stock of what's here.\n\n You make out [if c_3 is locked]a locked[else if c_3 is open]an opened[otherwise]a closed[end if] display.[if c_3 is open and there is something in the c_3] The display contains [a list of things in the c_3]. Now that's what I call TextWorld![end if][if c_3 is open and the c_3 contains nothing] The display is empty! What a waste of a day![end if]\n\nYou don't like doors? Why not try going east, that entranceway is unblocked. There is an exit to the south. Don't worry, it is unguarded.",
+            "exits": {},
+            "items": []
+        },
+        "studio": {
+            "description": "Well how about that, you are in a place we're calling a studio.\n\n\n\nYou don't like doors? Why not try going east, that entranceway is unguarded. There is an unblocked exit to the south. There is an exit to the west. Don't worry, it is unblocked.",
+            "exits": {},
+            "items": []
+        },
+        "kitchenette": {
+            "description": "You find yourself in a kitchenette. An ordinary one.\n\n\n\nThere is an exit to the north. Don't worry, it is unguarded. You need an unblocked exit? You should try going south. You don't like doors? Why not try going west, that entranceway is unguarded.",
+            "exits": {},
+            "items": []
+        },
+        "basement": {
+            "description": "You find yourself in a basement. A standard kind of place.\n\n\n\nThere is an exit to the west. Don't worry, it is unguarded.",
+            "exits": {},
+            "items": []
+        },
+        "salon": {
+            "description": "You've entered a salon.\n\n You smell a terrible smell, and follow it to a box.[if c_4 is open and there is something in the c_4] The box contains [a list of things in the c_4].[end if][if c_4 is open and the c_4 contains nothing] What a letdown! The box is empty![end if] You see [if c_5 is locked]a locked[else if c_5 is open]an opened[otherwise]a closed[end if] portmanteau.[if c_5 is open and there is something in the c_5] The portmanteau contains [a list of things in the c_5].[end if][if c_5 is open and the c_5 contains nothing] Empty! What kind of nightmare TextWorld is this?[end if]\n\nYou need an unblocked exit? You should try going east. There is an exit to the north. Don't worry, it is unblocked. You don't like doors? Why not try going west, that entranceway is unblocked.",
+            "exits": {},
+            "items": []
+        },
+        "chamber": {
+            "description": "You are in a chamber. An usual one. You start to take note of what's in the room.\n\n You can see a dresser.[if c_6 is open and there is something in the c_6] The dresser contains [a list of things in the c_6].[end if][if c_6 is open and the c_6 contains nothing] The dresser is empty, what a horrible day![end if]\n\nThere is an unblocked exit to the east.",
+            "exits": {},
+            "items": []
+        },
+        "canteen": {
+            "description": "I never took you for the sort of person who would show up in a canteen, but I guess I was wrong.\n\n You can see a shelf. [if there is something on the s_2]On the shelf you can see [a list of things on the s_2].[end if][if there is nothing on the s_2]But the thing is empty, unfortunately.[end if]\n\nYou don't like doors? Why not try going north, that entranceway is unblocked. There is an unblocked exit to the west.",
+            "exits": {},
+            "items": []
+        }
+    },
+    "player_start": "unknown"
+}

@@ -1,0 +1,29 @@
+{
+  "train": [
+    "games/train/train_0000.z8",
+    "games/train/train_0002.z8",
+    "games/train/train_0003.z8",
+    "games/train/train_0004.z8",
+    "games/train/train_0005.z8",
+    "games/train/train_0006.z8",
+    "games/train/train_0007.z8",
+    "games/train/train_0008.z8",
+    "games/train/train_0009.z8"
+  ],
+  "val": [
+    "games/val/val_0000.z8",
+    "games/val/val_0001.z8",
+    "games/val/val_0002.z8"
+  ],
+  "test": [
+    "games/test/test_0000.z8",
+    "games/test/test_0001.z8",
+    "games/test/test_0002.z8",
+    "games/test/test_0003.z8",
+    "games/test/test_0004.z8"
+  ],
+  "settings": {
+    "difficulty": "hard",
+    "seed": 42
+  }
+}

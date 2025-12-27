@@ -1,0 +1,55 @@
+{
+    "rooms": {
+        "attic": {
+            "description": "This might come as a shock to you, but you've just entered an attic.\n\n You can see a counter. [if there is something on the s_0]You see [a list of things on the s_0] on the counter. Now that's what I call TextWorld![end if][if there is nothing on the s_0]But the thing hasn't got anything on it. It would have been so cool if there was stuff on the counter.[end if]\n\nYou don't like doors? Why not try going north, that entranceway is unblocked. You don't like doors? Why not try going south, that entranceway is unblocked. You don't like doors? Why not try going west, that entranceway is unguarded.",
+            "exits": {},
+            "items": []
+        },
+        "sauna": {
+            "description": "You find yourself in a sauna. An ordinary kind of place. You can barely contain your excitement.\n\n You scan the room for a shelf, and you find a shelf. [if there is something on the s_1]On the shelf you see [a list of things on the s_1].[end if][if there is nothing on the s_1]But the thing is empty, unfortunately.[end if] You make out a board. You wonder idly who left that here. The board is usual.[if there is something on the s_2] On the board you see [a list of things on the s_2].[end if][if there is nothing on the s_2] But oh no! there's nothing on this piece of junk. Aw, here you were, all excited for there to be things on it![end if]\n\nYou don't like doors? Why not try going east, that entranceway is unblocked. You don't like doors? Why not try going north, that entranceway is unblocked. You need an unguarded exit? You should try going south.",
+            "exits": {},
+            "items": []
+        },
+        "pantry": {
+            "description": "I am required to announce that you are now in the pantry.\n\n You rest your hand against a wall, but you miss the wall and fall onto a table. [if there is something on the s_3]On the table you can make out [a list of things on the s_3].[end if][if there is nothing on the s_3]But the thing hasn't got anything on it.[end if]\n\nThere is an unguarded exit to the north. You don't like doors? Why not try going west, that entranceway is unguarded.",
+            "exits": {},
+            "items": []
+        },
+        "studio": {
+            "description": "You find yourself in a studio. A normal kind of place. Okay, just remember what you're here to do, and everything will go great.\n\n\n\nThere is an exit to the east. Don't worry, it is unguarded. There is an exit to the north. Don't worry, it is unguarded.",
+            "exits": {},
+            "items": []
+        },
+        "kitchen": {
+            "description": "You are in a kitchen. An ordinary kind of place. The room is well lit.\n\n You smell a terrible smell, and follow it to a refrigerator. You wonder idly who left that here.[if c_0 is open and there is something in the c_0] The refrigerator contains [a list of things in the c_0]![end if][if c_0 is open and the c_0 contains nothing] The refrigerator is empty! This is the worst thing that could possibly happen, ever![end if] You can see a rack. The rack is normal.[if there is something on the s_4] On the rack you see [a list of things on the s_4].[end if][if there is nothing on the s_4] But there isn't a thing on it.[end if]\n\nYou don't like doors? Why not try going north, that entranceway is unguarded. There is an exit to the south. Don't worry, it is unguarded. There is an exit to the west. Don't worry, it is unguarded.",
+            "exits": {},
+            "items": []
+        },
+        "kitchenette": {
+            "description": "If you're wondering why everything seems so usual all of a sudden, it's because you've just walked into the kitchenette.\n\n\n\nYou need an unblocked exit? You should try going east. There is an exit to the north. Don't worry, it is unblocked. There is an exit to the south. Don't worry, it is unguarded.",
+            "exits": {},
+            "items": []
+        },
+        "washroom": {
+            "description": "Well, here we are in the washroom.\n\n\n\n There is [if d_0 is open]an open[otherwise]a closed[end if] door leading east. You need an unguarded exit? You should try going south. You need an unblocked exit? You should try going west.",
+            "exits": {},
+            "items": []
+        },
+        "cookery": {
+            "description": "Look at you, bigshot, walking into a cookery like it isn't some huge deal. You decide to start listing off everything you see in the room, as if you were in a text adventure.\n\n You scan the room for a chest, and you find a chest.[if c_1 is open and there is something in the c_1] The chest contains [a list of things in the c_1].[end if][if c_1 is open and the c_1 contains nothing] The chest is empty! This is the worst thing that could possibly happen, ever![end if] You hear a noise behind you and spin around, but you can't see anything other than a pan. [if there is something on the s_5]On the pan you can make out [a list of things on the s_5].[end if][if there is nothing on the s_5]But there isn't a thing on it.[end if]\n\nYou don't like doors? Why not try going east, that entranceway is unblocked. There is an exit to the south. Don't worry, it is unblocked.",
+            "exits": {},
+            "items": []
+        },
+        "bathroom": {
+            "description": "You are in a bathroom. A typical kind of place.\n\n You can see a safe.[if c_2 is open and there is something in the c_2] The safe contains [a list of things in the c_2]. Wow, isn't TextWorld just the best?[end if][if c_2 is open and the c_2 contains nothing] What a letdown! The safe is empty![end if]\n\n There is [if d_0 is open]an open[otherwise]a closed[end if] door leading west. There is an exit to the south. Don't worry, it is unguarded.",
+            "exits": {},
+            "items": []
+        },
+        "lounge": {
+            "description": "You are in a lounge. An ordinary kind of place.\n\n You smell an intriguing smell, and follow it to a bed stand. The bed stand is standard.[if there is something on the s_6] On the bed stand you can make out [a list of things on the s_6].[end if][if there is nothing on the s_6] However, the bed stand, like an empty bed stand, has nothing on it. It would have been so cool if there was stuff on the bed stand.[end if]\n\nThere is an unblocked exit to the north.",
+            "exits": {},
+            "items": []
+        }
+    },
+    "player_start": "unknown"
+}
