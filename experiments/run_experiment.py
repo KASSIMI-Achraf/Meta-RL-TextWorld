@@ -60,7 +60,7 @@ def run_training(args):
     history = trainer.run()
     
     # Save training history
-    results_dir = Path("results")
+    results_dir = PROJECT_ROOT / "results"
     results_dir.mkdir(exist_ok=True)
     
     history_path = results_dir / f"training_history_{args.algorithm}.json"
@@ -89,10 +89,10 @@ def run_sb3_training(args):
     from stable_baselines3.common.vec_env import DummyVecEnv
     from agents.text_encoder import DistilBERTEncoder
 
-    game_files = sorted(glob.glob("games/train/*.z8"))
+    game_files = sorted(glob.glob(str(PROJECT_ROOT / "games/train/*.z8")))
     if not game_files:
-        print("No games found in games/train, using fallback.")
-        game_files = ["games/train/train_0000.z8"] 
+        print(f"No games found in {PROJECT_ROOT / 'games/train'}, using fallback.")
+        game_files = [str(PROJECT_ROOT / "games/train/train_0000.z8")] 
     
     print(f"Found {len(game_files)} training games.")
     
@@ -131,7 +131,7 @@ def run_sb3_training(args):
         learning_rate=config.get("meta_learning", {}).get("outer_lr", 1e-4),
         n_steps=128,
         batch_size=64,
-        tensorboard_log="logs/sb3_ppo"
+        tensorboard_log=str(PROJECT_ROOT / "logs/sb3_ppo")
     )
     
     total_timesteps = 2000 if args.debug else config.get("meta_learning", {}).get("num_iterations", 1000) * 1280
@@ -153,9 +153,9 @@ def run_sb3_training(args):
         current_timesteps += steps_per_game
         if (i+1) % 10 == 0:
             print(f"Progress: {current_timesteps}/{total_timesteps} steps", flush=True)
-            model.save("checkpoints/sb3_ppo_model_latest")
+            model.save(str(PROJECT_ROOT / "checkpoints/sb3_ppo_model_latest"))
     
-    save_path = "checkpoints/sb3_ppo_model"
+    save_path = str(PROJECT_ROOT / "checkpoints/sb3_ppo_model")
     model.save(save_path)
     print(f"Model saved to {save_path}")
     
@@ -176,16 +176,16 @@ def run_evaluation(args):
     )
     
     results = evaluator.evaluate_test_games(
-        test_dir=args.test_dir or "games/test"
+        test_dir=args.test_dir or str(PROJECT_ROOT / "games/test")
     )
     
     if args.compare_baselines:
         results["baseline_comparison"] = evaluator.compare_with_baselines(
-            test_dir=args.test_dir or "games/test"
+            test_dir=args.test_dir or str(PROJECT_ROOT / "games/test")
         )
     
     # Save results
-    output_path = args.output or "results/evaluation_results.json"
+    output_path = args.output or str(PROJECT_ROOT / "results/evaluation_results.json")
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     evaluator.save_results(results, output_path)
     
@@ -304,7 +304,7 @@ Examples:
                         help="Meta-learning algorithm")
     
     # Configuration
-    parser.add_argument("--config", type=str, default="configs/meta_train.yaml",
+    parser.add_argument("--config", type=str, default=str(PROJECT_ROOT / "configs/meta_train.yaml"),
                         help="Path to configuration file")
     parser.add_argument("--seed", type=int, default=42,
                         help="Random seed")
