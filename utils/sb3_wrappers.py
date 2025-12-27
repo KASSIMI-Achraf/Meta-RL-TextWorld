@@ -5,8 +5,6 @@ from typing import Dict, Any, List, Optional, Tuple, Union
 import torch
 
 from envs.textworld_env import TextWorldEnv
-# DistilBERTEncoder is imported lazily inside TextWorldEncodingWrapper.__init__ when needed
-
 class TextWorldEncodingWrapper(gym.Wrapper):
     """
     Wrapper that encodes text observations into dense vectors using DistilBERT.
@@ -31,6 +29,7 @@ class TextWorldEncodingWrapper(gym.Wrapper):
                  }
             from agents.text_encoder import DistilBERTEncoder
             self.encoder = DistilBERTEncoder(**encoder_kwargs, device=device)
+            self.encoder.to(device)
             self.encoder.eval() # Inference mode
         
         # Update observation space
@@ -169,8 +168,7 @@ class TextWorldTrialEnv(gym.Wrapper):
                 obs, reset_info = self.env.reset()
                 info.update(reset_info) # Merge infos
                 
-                # IMPORTANT: We return done=False to the agent so it thinks episode continues.
-                # Use a special key in info if we want to valid accumulation of rewards for metrics
+    
                 info["episode_done"] = True
                 
                 return self._wrap_obs(obs), reward, False, False, info
