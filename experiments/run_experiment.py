@@ -131,6 +131,7 @@ def run_sb3_training(args):
         learning_rate=config.get("meta_learning", {}).get("outer_lr", 1e-4),
         n_steps=128,
         batch_size=64,
+        device=device,
         tensorboard_log=str(PROJECT_ROOT / "logs/sb3_ppo")
     )
     
