@@ -25,7 +25,7 @@ maml:
 rl2:
   hidden_size: 256
   
-  episodes_per_trial: 7
+  episodes_per_trial: 5
 
 policy_gradient:
   gamma: 0.99
