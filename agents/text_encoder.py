@@ -101,14 +101,6 @@ class DistilBERTEncoder(TextEncoder):
         
         # Freeze specified number of layers
         self._freeze_layers(freeze_layers)
-        
-        # Use DataParallel if multiple GPUs available (MiniLM is small enough)
-        num_gpus = torch.cuda.device_count()
-        if num_gpus > 1 and device != "cpu":
-            print(f"Using DataParallel on {model_name} across {num_gpus} GPUs")
-            self.bert = nn.DataParallel(self.bert)
-        
-        # Optional projection layer (for output_size different from model's hidden_size)
         if output_size is not None and output_size != self._hidden_size:
             self.projection = nn.Linear(self._hidden_size, output_size)
         else:
