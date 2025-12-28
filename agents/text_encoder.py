@@ -10,7 +10,7 @@ from abc import ABC, abstractmethod
 from typing import List, Optional, Dict, Any
 import torch
 import torch.nn as nn
-from transformers import DistilBertModel, DistilBertTokenizer
+from transformers import AutoModel, AutoTokenizer
 
 
 class TextEncoder(ABC, nn.Module):
@@ -92,27 +92,30 @@ class DistilBERTEncoder(TextEncoder):
         self.device_name = device
         self._output_size = output_size
         
-        # Load DistilBERT model and tokenizer
-        self.tokenizer = DistilBertTokenizer.from_pretrained(model_name)
-        self.bert = DistilBertModel.from_pretrained(model_name)
+        # Load model and tokenizer using Auto classes (works for MiniLM, DistilBERT, etc.)
+        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+        self.bert = AutoModel.from_pretrained(model_name)
+        
+        # Auto-detect hidden size from model config
+        self._hidden_size = self.bert.config.hidden_size
         
         # Freeze specified number of layers
         self._freeze_layers(freeze_layers)
         
-        # Wrap in DataParallel if multiple GPUs available
+        # Use DataParallel if multiple GPUs available (MiniLM is small enough)
         num_gpus = torch.cuda.device_count()
         if num_gpus > 1 and device != "cpu":
-            print(f"Using DataParallel on DistilBERT across {num_gpus} GPUs")
+            print(f"Using DataParallel on {model_name} across {num_gpus} GPUs")
             self.bert = nn.DataParallel(self.bert)
         
-        # Optional projection layer
-        if output_size is not None and output_size != 768:
-            self.projection = nn.Linear(768, output_size)
+        # Optional projection layer (for output_size different from model's hidden_size)
+        if output_size is not None and output_size != self._hidden_size:
+            self.projection = nn.Linear(self._hidden_size, output_size)
         else:
             self.projection = None
         
-        # Store hidden size
-        self._hidden_size = 768
+        # Update base class hidden_size
+        self.hidden_size = self._hidden_size if output_size is None else output_size
         
         # Move to device
         self.to(device)
@@ -124,7 +127,7 @@ class DistilBERTEncoder(TextEncoder):
         if self.projection is not None:
             self.projection.to(device)
         super().to(device)
-        print(f"DistilBERTEncoder moved to {device}. Actual param device: {next(self.bert.parameters()).device}")
+        print(f"Encoder ({self.model_name}) moved to {device}.")
         return self
     
     def _freeze_layers(self, num_layers: int):
@@ -136,14 +139,22 @@ class DistilBERTEncoder(TextEncoder):
         """
         # Freeze embeddings
         if num_layers > 0:
-            for param in self.bert.embeddings.parameters():
-                param.requires_grad = False
-        
-        # Freeze transformer layers
-        for i, layer in enumerate(self.bert.transformer.layer):
-            if i < num_layers:
-                for param in layer.parameters():
+            if hasattr(self.bert, 'embeddings'):
+                for param in self.bert.embeddings.parameters():
                     param.requires_grad = False
+        
+        # Freeze transformer layers (handle different model architectures)
+        encoder_layers = None
+        if hasattr(self.bert, 'transformer') and hasattr(self.bert.transformer, 'layer'):
+            encoder_layers = self.bert.transformer.layer  # DistilBERT
+        elif hasattr(self.bert, 'encoder') and hasattr(self.bert.encoder, 'layer'):
+            encoder_layers = self.bert.encoder.layer  # BERT/MiniLM
+        
+        if encoder_layers:
+            for i, layer in enumerate(encoder_layers):
+                if i < num_layers:
+                    for param in layer.parameters():
+                        param.requires_grad = False
     
     def encode(self, text: str) -> torch.Tensor:
         """
