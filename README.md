@@ -355,8 +355,8 @@ MIT License
 ```bibtex
 @misc{meta_textworld,
   title={Meta-Learning for Fast Adaptation in TextWorld},
-  author={Your Name},
-  year={2024},
+  author={KASSIMI Achraf},
+  year={2025},
   url={https://github.com/yourusername/Textworld-MetaRL}
 }
 ```
