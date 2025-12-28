@@ -99,6 +99,12 @@ class DistilBERTEncoder(TextEncoder):
         # Freeze specified number of layers
         self._freeze_layers(freeze_layers)
         
+        # Wrap in DataParallel if multiple GPUs available
+        num_gpus = torch.cuda.device_count()
+        if num_gpus > 1 and device != "cpu":
+            print(f"Using DataParallel on DistilBERT across {num_gpus} GPUs")
+            self.bert = nn.DataParallel(self.bert)
+        
         # Optional projection layer
         if output_size is not None and output_size != 768:
             self.projection = nn.Linear(768, output_size)
@@ -118,6 +124,7 @@ class DistilBERTEncoder(TextEncoder):
         if self.projection is not None:
             self.projection.to(device)
         super().to(device)
+        print(f"DistilBERTEncoder moved to {device}. Actual param device: {next(self.bert.parameters()).device}")
         return self
     
     def _freeze_layers(self, num_layers: int):
