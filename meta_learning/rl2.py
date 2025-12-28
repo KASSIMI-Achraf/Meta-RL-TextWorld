@@ -427,8 +427,8 @@ class RL2:
             # Update progress bar
             pbar.set_postfix({
                 "loss": f"{metrics['loss']:.4f}",
-                "reward": f"{metrics['mean_reward']:.2f}",
-                "success": f"{metrics['success_rate']:.2%}"
+                "rew": f"{metrics['mean_reward']:.3f}",
+                "win": f"{metrics['success_rate']:.1%}"
             })
             
             history["loss"].append(metrics["loss"])
