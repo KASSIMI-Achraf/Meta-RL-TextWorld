@@ -117,10 +117,10 @@ class RL2:
         for episode in range(self.episodes_per_trial):
             trajectory = self._collect_episode_with_hidden(env)
             trajectories.append(trajectory)
-        
-        # Clear CUDA cache to prevent OOM on small GPUs
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
+            
+            # Clear cache after each episode to prevent OOM
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
         
         return trajectories
     
@@ -145,15 +145,16 @@ class RL2:
         while not done:
             admissible_cmds = info.get("admissible_commands", ["look"])
             
-            action_idx, log_prob, value = self.agent.select_action(
-                obs, admissible_cmds
-            )
+            with torch.no_grad():
+                action_idx, log_prob, value = self.agent.select_action(
+                    obs, admissible_cmds
+                )
             
             trajectory.observations.append(obs)
             trajectory.admissible_commands.append(admissible_cmds)
             trajectory.actions.append(action_idx)
-            trajectory.log_probs.append(log_prob)
-            trajectory.values.append(value)
+            trajectory.log_probs.append(log_prob.detach())
+            trajectory.values.append(value.detach())
             
             next_obs, reward, terminated, truncated, info = env.step(action_idx)
             done = terminated or truncated
@@ -167,6 +168,7 @@ class RL2:
             obs = next_obs
         
         return trajectory
+
     
     def compute_trial_loss(
         self,
