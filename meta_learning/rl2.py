@@ -352,6 +352,11 @@ class RL2:
             for traj in trajectories:
                 all_rewards.append(traj.total_reward())
                 all_success.append(traj.is_success())
+            
+            # Cleanup after each task to prevent memory accumulation
+            del trajectories
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
         
         avg_loss = total_loss / len(batch_envs)
         
@@ -365,15 +370,15 @@ class RL2:
         
         self.optimizer.step()
         
+        # Clear CUDA cache after update (this was unreachable before!)
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        
         return {
             "loss": avg_loss.item(),
             "mean_reward": np.mean(all_rewards),
             "success_rate": np.mean(all_success),
         }
-        
-        # Clear CUDA cache after update
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
     
     def meta_train(
         self,
