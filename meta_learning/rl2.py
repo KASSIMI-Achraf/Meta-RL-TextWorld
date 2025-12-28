@@ -175,7 +175,7 @@ class RL2:
         trajectories: List[Trajectory]
     ) -> Tuple[torch.Tensor, Dict[str, float]]:
         """
-        Compute loss for a complete trial.
+        Compute loss for a complete trial by re-evaluating actions.
         
         Args:
             trajectories: Trial trajectories
@@ -189,33 +189,84 @@ class RL2:
         total_entropy = 0.0
         total_steps = 0
         
+        # Reset hidden state for re-evaluation
+        self.agent.reset_hidden()
+        
         for traj in trajectories:
             if len(traj) == 0:
                 continue
             
-            # Compute returns and advantages
+            # Compute returns and advantages from stored rewards/values
             returns, advantages = self._compute_returns_and_advantages(traj)
             
             # Normalize advantages
             if len(advantages) > 1:
                 advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
             
-            # Get stored log probs and values
-            log_probs = torch.stack(traj.log_probs)
-            values = torch.stack(traj.values)
-            
-            device = log_probs.device
+            device = next(self.agent.parameters()).device
             returns = returns.to(device)
             advantages = advantages.to(device)
+            
+            # Re-evaluate each step WITH gradients
+            log_probs_list = []
+            values_list = []
+            entropies_list = []
+            
+            for t in range(len(traj)):
+                obs = traj.observations[t]
+                cmds = traj.admissible_commands[t]
+                action = traj.actions[t]
+                
+                # Re-run through agent to get gradients
+                obs_encoding = self.agent.encode_observation(obs, cmds)
+                cmd_encodings = self.agent._encode_commands(cmds)
+                
+                rnn_output, self.agent._hidden_state = self.agent.forward_with_hidden(
+                    obs_encoding,
+                    self.agent._prev_action,
+                    self.agent._prev_reward,
+                    self.agent._hidden_state
+                )
+                
+                policy_input = self.agent.policy_adapter(rnn_output)
+                value_input = self.agent.value_adapter(rnn_output)
+                
+                if cmd_encodings.dim() == 2:
+                    cmd_encodings = cmd_encodings.unsqueeze(0)
+                
+                probs = self.agent.policy.command_scorer(policy_input, cmd_encodings)
+                if probs.dim() == 2:
+                    probs = probs.squeeze(0)
+                value = self.agent.value.value_net(value_input).squeeze()
+                
+                dist = torch.distributions.Categorical(probs)
+                action_tensor = torch.tensor(action, device=device)
+                action_tensor = action_tensor.clamp(0, len(cmds) - 1)
+                
+                log_prob = dist.log_prob(action_tensor)
+                entropy = dist.entropy()
+                
+                log_probs_list.append(log_prob)
+                values_list.append(value)
+                entropies_list.append(entropy)
+                
+                # Update prev action/reward for next step
+                self.agent._prev_action = action
+                if t < len(traj.rewards):
+                    self.agent._prev_reward = traj.rewards[t]
+            
+            log_probs = torch.stack(log_probs_list)
+            values = torch.stack(values_list)
+            entropies = torch.stack(entropies_list)
             
             # Policy loss
             policy_loss = -(log_probs * advantages.detach()).mean()
             
             # Value loss
-            value_loss = F.mse_loss(values, returns)
+            value_loss = F.mse_loss(values, returns.detach())
             
-            # Entropy (approximate from log probs)
-            entropy = -log_probs.mean()
+            # Entropy bonus
+            entropy = entropies.mean()
             
             total_policy_loss += policy_loss * len(traj)
             total_value_loss += value_loss * len(traj)
@@ -223,7 +274,7 @@ class RL2:
             total_steps += len(traj)
         
         if total_steps == 0:
-            return torch.tensor(0.0, requires_grad=True), {}
+            return torch.tensor(0.0, device=device, requires_grad=True), {}
         
         avg_policy_loss = total_policy_loss / total_steps
         avg_value_loss = total_value_loss / total_steps
