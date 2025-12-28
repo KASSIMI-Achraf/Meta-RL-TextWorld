@@ -74,4 +74,4 @@ checkpoints:
 
 seed: 42
 
-device: "cpu"
+device: "auto"
