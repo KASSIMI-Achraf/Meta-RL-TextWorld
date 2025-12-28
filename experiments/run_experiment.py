@@ -50,6 +50,9 @@ def run_training(args):
     if args.algorithm == "sb3":
         return run_sb3_training(args)
     
+    if args.algorithm == "rl2":
+        return run_rl2_training(args)
+    
     trainer = MetaTrainer(
         config_path=args.config,
         algorithm=args.algorithm,
@@ -76,9 +79,20 @@ def run_training(args):
 
 def run_sb3_training(args):
     """Run training with Stable Baselines3 PPO."""
-    print("Starting SB3 PPO Training...")
+    print("Starting Multi-GPU SB3 PPO Training...")
     
     config = load_config(args.config)
+    
+    from stable_baselines3.common.monitor import Monitor
+    from stable_baselines3.common.vec_env import SubprocVecEnv
+    import torch
+    import os
+    
+    num_gpus = torch.cuda.device_count()
+    print(f"Detected {num_gpus} GPUs.")
+
+    num_envs = max(num_gpus, 2) 
+    print(f"Using {num_envs} parallel environments.")
     
     from stable_baselines3.common.monitor import Monitor
     import os
@@ -96,22 +110,23 @@ def run_sb3_training(args):
     
     print(f"Found {len(game_files)} training games.")
     
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    print(f"Using device: {device}")
     
-    def make_sb3_env(rank, game_path):
+    def make_sb3_env(rank, game_path, worker_device):
         def _init():
             from envs.textworld_env import TextWorldEnv
             from utils.sb3_wrappers import TextWorldEncodingWrapper, TextWorldTrialEnv
             from stable_baselines3.common.monitor import Monitor
             
+            print(f"Worker {rank} initializing on {worker_device} for game: {os.path.basename(game_path)}")
+            
             env = TextWorldEnv(
                 game_path=game_path,
-                max_steps=100,
+                max_steps=70,
                 use_admissible_commands=True
             )
             
-            env = TextWorldEncodingWrapper(env, device=device)
+            # Each worker gets its own encoder instance on its assigned device
+            env = TextWorldEncodingWrapper(env, device=worker_device)
             env = TextWorldTrialEnv(env, episodes_per_trial=10)
             
             log_dir = "logs/sb3_monitor"
@@ -120,10 +135,19 @@ def run_sb3_training(args):
             return env
         return _init
 
-    initial_game = game_files[0]
-    print(f"Initializing model with {os.path.basename(initial_game)}...")
-    env = DummyVecEnv([make_sb3_env(0, initial_game)])
+    # Create parallel environments
+    envs_fns = []
+    for i in range(num_envs):
+        # Round-robin device assignment
+        worker_device = f"cuda:{i % num_gpus}" if num_gpus > 0 else "cpu"
+        game_path = game_files[i % len(game_files)]
+        envs_fns.append(make_sb3_env(i, game_path, worker_device))
     
+    env = SubprocVecEnv(envs_fns)
+    
+    # The PPO model itself can stay on cuda:0 (or we could use DataParallel, but SB3 doesn't natively support it easily)
+    # The heavy lifting (BERT) is now distributed across GPUs in the worker processes.
+    model_device = "cuda:0" if num_gpus > 0 else "cpu"
     model = PPO(
         TextWorldDistilBertPolicy,
         env,
@@ -131,7 +155,7 @@ def run_sb3_training(args):
         learning_rate=config.get("meta_learning", {}).get("outer_lr", 1e-4),
         n_steps=128,
         batch_size=64,
-        device=device,
+        device=model_device,
         tensorboard_log=str(PROJECT_ROOT / "logs/sb3_ppo")
     )
     
@@ -143,12 +167,6 @@ def run_sb3_training(args):
     
     current_timesteps = 0
     for i in range(num_updates):
-        game_path = random.choice(game_files)
-        
-        new_env = DummyVecEnv([make_sb3_env(0, game_path)])
-        
-        model.set_env(new_env)
-        
         model.learn(total_timesteps=steps_per_game, reset_num_timesteps=False, progress_bar=True)
         
         current_timesteps += steps_per_game
@@ -163,6 +181,137 @@ def run_sb3_training(args):
     model.get_env().close()
     return model.get_env()
 
+
+def run_rl2_training(args):
+    """Run RL2 meta-training with multi-GPU support."""
+    print("Starting RL2 Meta-Training...")
+    
+    config = load_config(args.config)
+    
+    import glob
+    import numpy as np
+    from tqdm import tqdm
+    from pathlib import Path
+    
+    from agents.meta_rl_agent import RL2Agent
+    from meta_learning.rl2 import RL2
+    from envs.textworld_env import TextWorldEnv
+    from utils.helpers import set_seed, get_device
+    
+    set_seed(args.seed)
+    
+    num_gpus = torch.cuda.device_count()
+    print(f"Detected {num_gpus} GPUs.")
+    device = "cuda:0" if num_gpus > 0 else "cpu"
+    print(f"Using device: {device}")
+    
+    # Load training games
+    game_files = sorted(glob.glob(str(PROJECT_ROOT / "games/train/*.z8")))
+    if not game_files:
+        print(f"No games found in {PROJECT_ROOT / 'games/train'}")
+        return None
+    print(f"Found {len(game_files)} training games.")
+    
+    # Load validation games
+    val_game_files = sorted(glob.glob(str(PROJECT_ROOT / "games/val/*.z8")))
+    print(f"Found {len(val_game_files)} validation games.")
+    
+    # Create environments
+    def create_envs(game_paths):
+        envs = []
+        for game_path in game_paths:
+            env = TextWorldEnv(
+                game_path=str(game_path),
+                max_steps=100,
+                use_admissible_commands=True
+            )
+            envs.append(env)
+        return envs
+    
+    train_envs = create_envs(game_files)
+    val_envs = create_envs(val_game_files) if val_game_files else []
+    
+    # Agent configuration
+    agent_config = config.get("agent", {})
+    distilbert_config = agent_config.get("distilbert", {})
+    encoder_config = {
+        "model_name": distilbert_config.get("model_name", "distilbert-base-uncased"),
+        "freeze_layers": distilbert_config.get("freeze_layers", 4),
+        "max_length": 512,
+        "hidden_size": distilbert_config.get("hidden_size", 768),
+    }
+    
+    policy_config = agent_config.get("policy", {})
+    value_config = agent_config.get("value", {})
+    rl2_config = config.get("rl2", {})
+    meta_config = config.get("meta_learning", {})
+    pg_config = config.get("policy_gradient", {})
+    
+    # Create RL2 agent
+    agent = RL2Agent(
+        encoder_config=encoder_config,
+        policy_hidden_sizes=policy_config.get("hidden_sizes", [256, 128]),
+        value_hidden_sizes=value_config.get("hidden_sizes", [256, 128]),
+        hidden_size=encoder_config.get("hidden_size", 768),
+        rnn_hidden_size=rl2_config.get("hidden_size", 256),
+        device=device
+    )
+    agent.to(device)
+    print(f"Created RL2Agent on {device}")
+    
+    # Create RL2 meta-learner
+    rl2 = RL2(
+        agent=agent,
+        learning_rate=meta_config.get("outer_lr", 0.001),
+        episodes_per_trial=rl2_config.get("episodes_per_trial", 10),
+        meta_batch_size=meta_config.get("meta_batch_size", 4),
+        gamma=pg_config.get("gamma", 0.99),
+        gae_lambda=pg_config.get("gae_lambda", 0.95),
+        entropy_coef=pg_config.get("entropy_coef", 0.01),
+        value_coef=pg_config.get("value_coef", 0.5),
+        max_grad_norm=1.0,
+        device=device
+    )
+    
+    # Training loop
+    num_iterations = 5 if args.debug else meta_config.get("num_iterations", 1000)
+    val_every = config.get("training", {}).get("val_every", 50)
+    save_every = config.get("training", {}).get("save_every", 100)
+    save_dir = PROJECT_ROOT / "checkpoints"
+    save_dir.mkdir(parents=True, exist_ok=True)
+    
+    print(f"Starting RL2 meta-training for {num_iterations} iterations...")
+    print(f"  Meta-batch size: {meta_config.get('meta_batch_size', 4)}")
+    print(f"  Episodes per trial: {rl2_config.get('episodes_per_trial', 10)}")
+    
+    history = rl2.meta_train(
+        train_envs=train_envs,
+        val_envs=val_envs,
+        num_iterations=num_iterations,
+        val_every=val_every,
+        save_every=save_every,
+        save_dir=str(save_dir),
+        logger=None
+    )
+    
+    # Cleanup
+    for env in train_envs + val_envs:
+        env.close()
+    
+    # Save final results
+    results_dir = PROJECT_ROOT / "results"
+    results_dir.mkdir(exist_ok=True)
+    
+    import json
+    history_path = results_dir / "training_history_rl2.json"
+    with open(history_path, "w") as f:
+        serializable = {k: [float(v) for v in vals] for k, vals in history.items()}
+        json.dump(serializable, f, indent=2)
+    
+    print(f"\nTraining history saved to {history_path}")
+    print(f"Best model saved to {save_dir / 'best_model.pt'}")
+    
+    return history
 
 def run_evaluation(args):
     """Run evaluation on test games."""
