@@ -473,7 +473,7 @@ class RL2Agent(MetaRLAgent):
         
         output, new_hidden = self.rnn(rnn_input, hidden)
         
-        return output.squeeze(1), new_hidden.detach()
+        return output.squeeze(1), new_hidden
     
     def select_action(
         self,
