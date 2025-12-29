@@ -22,6 +22,11 @@ from stable_baselines3 import PPO
 from envs.textworld_env import TextWorldEnv
 from utils.sb3_wrappers import TextWorldEncodingWrapper, TextWorldTrialEnv
 
+# RL2 Imports
+from agents.meta_rl_agent import RL2Agent
+from utils.helpers import load_config
+from meta_learning.rl2 import RL2
+
 
 # ANSI color codes for terminal output
 class Colors:
@@ -44,6 +49,7 @@ def clear_screen():
 def visualize_agent_gameplay(
     model_path: str,
     game_path: str,
+    config_path: Optional[str] = None,
     max_steps: int = 100,
     delay: float = 1.0,
     clear_between_steps: bool = False,
@@ -53,8 +59,9 @@ def visualize_agent_gameplay(
     Watch the agent play a game step-by-step.
     
     Args:
-        model_path: Path to the saved SB3 model
+        model_path: Path to the saved model (.zip for SB3, .pt for RL2)
         game_path: Path to the game file
+        config_path: Path to config/meta_train.yaml (required for RL2)
         max_steps: Maximum steps per episode
         delay: Seconds to wait between steps
         clear_between_steps: Clear screen between steps
@@ -63,25 +70,85 @@ def visualize_agent_gameplay(
     Returns:
         Episode summary (reward, steps, won/lost)
     """
-    # Load model
-    print(f"{Colors.CYAN}Loading model...{Colors.ENDC}")
-    model = PPO.load(model_path)
+    # Detect model type
+    is_rl2 = model_path.endswith(".pt")
+    
     device = "cuda" if torch.cuda.is_available() else "cpu"
     
-    # Create environment
-    print(f"{Colors.CYAN}Loading game: {Path(game_path).name}{Colors.ENDC}")
-    
-    # We need the raw TextWorldEnv to access admissible commands
-    raw_env = TextWorldEnv(
-        game_path=game_path,
-        max_steps=max_steps,
-        use_admissible_commands=True
-    )
-    
-    # Wrapped env for model
-    env = TextWorldEncodingWrapper(raw_env, device=device)
-    # Use TrialEnv wrapper to match training obs space (adds prev_action, etc.)
-    env = TextWorldTrialEnv(env, episodes_per_trial=1)
+    if is_rl2:
+        if not config_path:
+            raise ValueError("Config path is required for RL2 models (.pt)")
+            
+        print(f"{Colors.CYAN}Loading RL2 model...{Colors.ENDC}")
+        config = load_config(config_path)
+        
+        # Reconstruct RL2 Agent
+        agent_config = config.get("agent", {})
+        distilbert_config = agent_config.get("distilbert", {})
+        encoder_config = {
+            "model_name": distilbert_config.get("model_name", "distilbert-base-uncased"),
+            "freeze_layers": distilbert_config.get("freeze_layers", 4),
+            "max_length": 512,
+            "hidden_size": distilbert_config.get("hidden_size", 768),
+        }
+        
+        policy_config = agent_config.get("policy", {})
+        value_config = agent_config.get("value", {})
+        rl2_config = config.get("rl2", {})
+        
+        agent = RL2Agent(
+            encoder_config=encoder_config,
+            policy_hidden_sizes=policy_config.get("hidden_sizes", [256, 128]),
+            value_hidden_sizes=value_config.get("hidden_sizes", [256, 128]),
+            hidden_size=encoder_config.get("hidden_size", 768),
+            rnn_hidden_size=rl2_config.get("hidden_size", 256),
+            device=device
+        )
+        
+        # Load state dict
+        try:
+            # Try loading as complete RL2 checkpoint (including optimizer)
+            checkpoint = torch.load(model_path, map_location=device)
+            if "agent_state" in checkpoint:
+                agent.load_state_dict(checkpoint["agent_state"])
+            else:
+                # Try direct state dict
+                agent.load_state_dict(checkpoint)
+        except Exception as e:
+            print(f"{Colors.RED}Error loading checkpoint: {e}{Colors.ENDC}")
+            return
+            
+        agent.eval()
+        agent.to(device)
+        agent.reset_hidden()
+        
+        # RL2 uses raw env
+        env = TextWorldEnv(
+            game_path=game_path,
+            max_steps=max_steps,
+            use_admissible_commands=True
+        )
+        #
+        
+    else:
+        # SB3 PPO
+        print(f"{Colors.CYAN}Loading SB3 model...{Colors.ENDC}")
+        model = PPO.load(model_path)
+        
+        # Create environment
+        print(f"{Colors.CYAN}Loading game: {Path(game_path).name}{Colors.ENDC}")
+        
+        # We need the raw TextWorldEnv to access admissible commands
+        raw_env = TextWorldEnv(
+            game_path=game_path,
+            max_steps=max_steps,
+            use_admissible_commands=True
+        )
+        
+        # Wrapped env for model
+        env = TextWorldEncodingWrapper(raw_env, device=device)
+        # Use TrialEnv wrapper to match training obs space (adds prev_action, etc.)
+        env = TextWorldTrialEnv(env, episodes_per_trial=1)
     
     # Transcript storage
     transcript = []
@@ -93,6 +160,14 @@ def visualize_agent_gameplay(
     done = False
     won = False
     lost = False
+    
+    # Store raw env reference for accessing infos/commands
+    if is_rl2:
+        raw_env_ref = env
+    else:
+        raw_env_ref = env.unwrapped if hasattr(env, "unwrapped") else env
+        raw_env_ref = env.env.env
+
     
     print(f"\n{Colors.BOLD}{'=' * 70}{Colors.ENDC}")
     print(f"{Colors.HEADER}GAME START: {Path(game_path).stem}{Colors.ENDC}")
@@ -106,22 +181,37 @@ def visualize_agent_gameplay(
         if clear_between_steps:
             clear_screen()
         
-        # Get admissible commands from raw env
-        admissible_commands = raw_env.get_admissible_commands()
-        
-        # Get game state from raw env's current infos
-        description = raw_env._current_infos.get("description", "No description")
-        inventory = raw_env._current_infos.get("inventory", "Nothing")
-        feedback = raw_env._current_obs if raw_env._current_obs else ""
-        
-        # Get action from model
-        action, _ = model.predict(obs, deterministic=True)
-        
-        # Handle numpy action
-        if isinstance(action, np.ndarray):
-            action_idx = int(action.item()) if action.size == 1 else int(action[0])
+        # Get admissible commands
+        if is_rl2:
+             admissible_commands = info.get("admissible_commands", ["look"])
         else:
-            action_idx = int(action)
+             admissible_commands = raw_env_ref.get_admissible_commands()
+        
+        # Get game state
+        if is_rl2:
+            description = info.get("description", "No description")
+            inventory = info.get("inventory", "Nothing")
+            feedback = info.get("feedback", "")
+        else:
+             description = raw_env_ref._current_infos.get("description", "No description")
+             inventory = raw_env_ref._current_infos.get("inventory", "Nothing")
+             feedback = raw_env_ref._current_obs if raw_env_ref._current_obs else ""
+        
+        # Get action
+        if is_rl2:
+             with torch.no_grad():
+                action_idx, log_prob, value = agent.select_action(
+                    obs, admissible_commands, deterministic=True
+                )
+        else:
+            # SB3 PPO
+            action, _ = model.predict(obs, deterministic=True)
+            
+            # Handle numpy action
+            if isinstance(action, np.ndarray):
+                action_idx = int(action.item()) if action.size == 1 else int(action[0])
+            else:
+                action_idx = int(action)
         
         # Get the command string
         if action_idx < len(admissible_commands):
@@ -166,7 +256,12 @@ def visualize_agent_gameplay(
         })
         
         # Take action
-        obs, reward, terminated, truncated, info = env.step(action)
+        if is_rl2:
+             obs, reward, terminated, truncated, info = env.step(action_idx)
+             agent.update_prev_reward(reward)
+        else:
+             obs, reward, terminated, truncated, info = env.step(action)
+             
         episode_reward += reward
         done = terminated or truncated
         
@@ -244,11 +339,15 @@ def main():
     parser.add_argument("--save", type=str, default=None,
                         help="Save transcript to JSON file")
     
+    parser.add_argument("--config", type=str, default=None,
+                        help="Path to config file (required for RL2)")
+    
     args = parser.parse_args()
     
     visualize_agent_gameplay(
         model_path=args.model,
         game_path=args.game,
+        config_path=args.config,
         max_steps=args.max_steps,
         delay=args.delay,
         clear_between_steps=args.clear,
