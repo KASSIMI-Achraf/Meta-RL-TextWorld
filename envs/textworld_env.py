@@ -10,9 +10,9 @@ A Gymnasium-compatible wrapper for TextWorld games that provides:
 import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
-# NOTE: textworld imports are lazy-loaded in _create_env() for faster startup
 from typing import Optional, Dict, Any, List, Tuple
 import os
+from collections import defaultdict
 
 
 class TextWorldEnv(gym.Env):
@@ -37,9 +37,8 @@ class TextWorldEnv(gym.Env):
         max_steps: int = 100,
         use_admissible_commands: bool = True,
         max_admissible_commands: int = 20,
-        request_infos: Optional[Any] = None,  # textworld.EnvInfos, lazy loaded
+        request_infos: Optional[Any] = None,  
         render_mode: Optional[str] = None,
-        # Reward shaping parameters
         reward_shaping: Optional[Dict[str, float]] = None
     ):
         """
@@ -70,27 +69,25 @@ class TextWorldEnv(gym.Env):
         
         # Reward shaping config
         self.shaping_config = {
-            "win_bonus": 10.0,
+            "win_bonus": 50.0,
             "score_multiplier": 10.0,
             "exploration_bonus": 0.1,
             "inventory_bonus": 0.5,
-            "time_penalty": -0.01,
+            "time_penalty": -0.1,
             "productive_action": 0.05,
+            "revisit_penalty_scale": 0.1,  # Penalty = (visits - 1) * scale
         }
         if reward_shaping:
             self.shaping_config.update(reward_shaping)
             
         # State tracking for shaping
         self._visited_locations = set()
+        self._location_visit_counts = defaultdict(int)
         self._seen_inventory_items = set()
         self._last_score = 0
         
-        # Store request_infos preference - actual EnvInfos will be created lazily
-        # in _create_env to avoid importing textworld at module load time
         self._request_infos_arg = request_infos
-        self.request_infos = None  # Will be set in _create_env
-        
-        # Create the underlying TextWorld environment
+        self.request_infos = None
         self._env = None
         self._current_step = 0
         self._current_obs = None
@@ -119,12 +116,9 @@ class TextWorldEnv(gym.Env):
         if self._env is not None:
             self._env.close()
         
-        # Lazy import textworld - only load when actually creating an environment
-        # This significantly speeds up script startup
         import textworld
         import textworld.gym
-        
-        # Create request_infos now that textworld is loaded
+
         if self.request_infos is None:
             if self._request_infos_arg is None:
                 self.request_infos = textworld.EnvInfos(
@@ -181,9 +175,6 @@ class TextWorldEnv(gym.Env):
         if self._env is None:
             self._create_env()
         
-        # Reset the underlying environment
-        # Note: TextWorld's gym wrapper doesn't support 'seed' argument in reset()
-        # Seeding is handled at environment creation time for TextWorld
         obs, infos = self._env.reset()
         
         self._current_step = 0
@@ -193,12 +184,14 @@ class TextWorldEnv(gym.Env):
         
         # Reset shaping state
         self._visited_locations = set()
+        self._location_visit_counts = defaultdict(int)
         self._seen_inventory_items = set()
         self._last_score = infos.get("score", 0)
         
         # Record initial state
         if "description" in infos:
             self._visited_locations.add(infos["description"])
+            self._location_visit_counts[infos["description"]] = 1
         if "inventory" in infos:
             self._seen_inventory_items.add(infos["inventory"])
         
@@ -274,6 +267,18 @@ class TextWorldEnv(gym.Env):
             shaped_reward += self.shaping_config["win_bonus"]
         
         description = infos.get("description", "")
+        if description:
+            # Revisit penalty: scaled by number of times visited minus 1
+            # 1st visit: 0 penalty
+            # 2nd visit: 1 * scale
+            # 3rd visit: 2 * scale, etc.
+            self._location_visit_counts[description] += 1
+            visits = self._location_visit_counts[description]
+            if visits > 1:
+                revisit_penalty = (visits - 1) * self.shaping_config.get("revisit_penalty_scale", 0.0)
+                # Apply penalty (subtract from reward)
+                shaped_reward -= revisit_penalty
+        
         if description and description not in self._visited_locations:
             shaped_reward += self.shaping_config["exploration_bonus"]
             self._visited_locations.add(description)
