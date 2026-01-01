@@ -222,7 +222,7 @@ def run_rl2_training(args):
         for game_path in game_paths:
             env = TextWorldEnv(
                 game_path=str(game_path),
-                max_steps=100,
+                max_steps=50,
                 use_admissible_commands=True
             )
             envs.append(env)
