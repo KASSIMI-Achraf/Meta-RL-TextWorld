@@ -328,7 +328,7 @@ class RL2:
             policy_loss = -(log_probs * advantages.detach()).mean()
             
             # Value loss
-            value_loss = F.mse_loss(values, returns.detach())
+            value_loss = F.mse_loss(values.squeeze(-1), returns.detach())
             
             # Entropy bonus
             entropy = entropies.mean()
