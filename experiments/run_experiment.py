@@ -53,9 +53,6 @@ def run_training(args):
     if args.algorithm == "rl2":
         return run_rl2_training(args)
     
-    if args.algorithm == "rl2":
-        return run_rl2_training(args)
-    
     trainer = MetaTrainer(
         config_path=args.config,
         algorithm=args.algorithm,

@@ -8,6 +8,7 @@ A text-based RL agent designed for meta-learning, featuring:
 """
 
 from typing import Any, Dict, Iterator, List, Optional, Tuple
+import hashlib
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -467,7 +468,6 @@ class RL2Agent(MetaRLAgent):
             dropout=0.1  
         )
         
-]
         self.policy_adapter = nn.Linear(rnn_hidden_size, hidden_size)
         self.value_adapter = nn.Linear(rnn_hidden_size, hidden_size)
         
@@ -583,10 +583,10 @@ class RL2Agent(MetaRLAgent):
         if len(admissible_commands) == 0:
             admissible_commands = ["look"]
         
-        # Compute state hash for revisit detection
+        # Compute state hash for revisit detection (deterministic using MD5)
         # Hash based on description + inventory (the core state identifiers)
         state_text = f"{observation.get('description', '')}{observation.get('inventory', '')}"
-        state_hash = hash(state_text)
+        state_hash = hashlib.md5(state_text.encode()).hexdigest()
         
         obs_encoding = self.encode_observation(observation, admissible_commands)
         cmd_encodings = self._encode_commands(admissible_commands)

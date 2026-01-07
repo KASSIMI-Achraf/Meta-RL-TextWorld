@@ -12,6 +12,7 @@ Key concepts:
 """
 
 from typing import Any, Dict, List, Optional, Tuple
+import hashlib
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -121,11 +122,6 @@ class RL2:
             # Clear cache after each episode to prevent OOM
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
-            
-            # Clear cache after each episode to prevent OOM
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
-        
         return trajectories
     
     def _collect_episode_with_hidden(
@@ -153,16 +149,10 @@ class RL2:
                 action_idx, log_prob, value = self.agent.select_action(
                     obs, admissible_cmds
                 )
-            with torch.no_grad():
-                action_idx, log_prob, value = self.agent.select_action(
-                    obs, admissible_cmds
-                )
             
             trajectory.observations.append(obs)
             trajectory.admissible_commands.append(admissible_cmds)
             trajectory.actions.append(action_idx)
-            trajectory.log_probs.append(log_prob.detach())
-            trajectory.values.append(value.detach())
             trajectory.log_probs.append(log_prob.detach())
             trajectory.values.append(value.detach())
             
@@ -218,14 +208,10 @@ class RL2:
         # Reset hidden state for re-evaluation
         self.agent.reset_hidden()
         
-        # Reset hidden state for re-evaluation
-        self.agent.reset_hidden()
-        
         for traj in trajectories:
             if len(traj) == 0:
                 continue
             
-            # Compute returns and advantages from stored rewards/values
             # Compute returns and advantages from stored rewards/values
             returns, advantages = self._compute_returns_and_advantages(traj)
             
@@ -233,7 +219,6 @@ class RL2:
             if len(advantages) > 1:
                 advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
             
-            device = next(self.agent.parameters()).device
             returns = returns.to(device)
             advantages = advantages.to(device)
             
@@ -263,9 +248,9 @@ class RL2:
                 action = traj.actions[t]
                 obs = traj.observations[t]
                 
-                # Compute state hash for this observation (same as select_action)
+                # Compute state hash for this observation (deterministic, same as select_action)
                 state_text = f"{obs.get('description', '')}{obs.get('inventory', '')}"
-                state_hash = hash(state_text)
+                state_hash = hashlib.md5(state_text.encode()).hexdigest()
                 
                 # Use pre-computed encodings
                 obs_encoding = all_obs_encodings[t]
@@ -344,10 +329,7 @@ class RL2:
             
             # Value loss
             value_loss = F.mse_loss(values, returns.detach())
-            value_loss = F.mse_loss(values, returns.detach())
             
-            # Entropy bonus
-            entropy = entropies.mean()
             # Entropy bonus
             entropy = entropies.mean()
             
@@ -357,7 +339,6 @@ class RL2:
             total_steps += len(traj)
         
         if total_steps == 0:
-            return torch.tensor(0.0, device=device, requires_grad=True), {}
             return torch.tensor(0.0, device=device, requires_grad=True), {}
         
         avg_policy_loss = total_policy_loss / total_steps
@@ -441,11 +422,6 @@ class RL2:
             del trajectories
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
-            
-            # Cleanup after each task to prevent memory accumulation
-            del trajectories
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
         
         avg_loss = total_loss / len(batch_envs)
         
@@ -458,10 +434,6 @@ class RL2:
             )
         
         self.optimizer.step()
-        
-        # Clear CUDA cache after update (this was unreachable before!)
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
         
         # Clear CUDA cache after update (this was unreachable before!)
         if torch.cuda.is_available():
@@ -520,8 +492,6 @@ class RL2:
             # Update progress bar
             pbar.set_postfix({
                 "loss": f"{metrics['loss']:.4f}",
-                "rew": f"{metrics['mean_reward']:.3f}",
-                "win": f"{metrics['success_rate']:.1%}"
                 "rew": f"{metrics['mean_reward']:.3f}",
                 "win": f"{metrics['success_rate']:.1%}"
             })
@@ -638,3 +608,4 @@ class RL2:
         rl2.optimizer.load_state_dict(checkpoint["optimizer_state"])
         
         return rl2
+
