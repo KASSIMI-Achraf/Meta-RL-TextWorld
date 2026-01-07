@@ -222,9 +222,18 @@ class RL2:
             returns = returns.to(device)
             advantages = advantages.to(device)
             
-            # === BATCH ENCODE ALL OBSERVATIONS UPFRONT ===
+            # === BATCH ENCODE ALL OBSERVATIONS UPFRONT (CHUNKED) ===
             all_obs_texts = [self._build_obs_text(obs) for obs in traj.observations]
-            all_obs_encodings = self.agent.encoder.encode_batch(all_obs_texts)
+            
+            # Process in chunks to prevent OOM
+            batch_size = 32
+            encodings_list = []
+            for i in range(0, len(all_obs_texts), batch_size):
+                batch_texts = all_obs_texts[i:i + batch_size]
+                batch_encodings = self.agent.encoder.encode_batch(batch_texts)
+                encodings_list.append(batch_encodings)
+            
+            all_obs_encodings = torch.cat(encodings_list, dim=0)
             
             # === CACHE COMMAND ENCODINGS ===
             cmd_cache = {}
