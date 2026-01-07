@@ -39,12 +39,12 @@ policy_gradient:
   normalize_advantages: true
 
 agent:
-  encoder_type: "distilbert"
+  encoder_type: "tinybert"
   
-  distilbert:
-    model_name: "sentence-transformers/all-MiniLM-L6-v2"
-    freeze_layers: 4
-    hidden_size: 384
+  tinybert:
+    model_name: "huawei-noah/TinyBERT_General_4L_312D"
+    freeze_layers: 2  # TinyBERT has 4 layers, freeze first 2
+    hidden_size: 312
   
   policy:
     hidden_sizes: [256, 128]

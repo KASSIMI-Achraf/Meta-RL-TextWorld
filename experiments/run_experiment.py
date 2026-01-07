@@ -53,6 +53,9 @@ def run_training(args):
     if args.algorithm == "rl2":
         return run_rl2_training(args)
     
+    if args.algorithm == "rl2":
+        return run_rl2_training(args)
+    
     trainer = MetaTrainer(
         config_path=args.config,
         algorithm=args.algorithm,
@@ -145,8 +148,6 @@ def run_sb3_training(args):
     
     env = SubprocVecEnv(envs_fns)
     
-    # The PPO model itself can stay on cuda:0 (or we could use DataParallel, but SB3 doesn't natively support it easily)
-    # The heavy lifting (BERT) is now distributed across GPUs in the worker processes.
     model_device = "cuda:0" if num_gpus > 0 else "cpu"
     model = PPO(
         TextWorldDistilBertPolicy,
@@ -222,7 +223,7 @@ def run_rl2_training(args):
         for game_path in game_paths:
             env = TextWorldEnv(
                 game_path=str(game_path),
-                max_steps=75,
+                max_steps=100,
                 use_admissible_commands=True
             )
             envs.append(env)
@@ -231,14 +232,15 @@ def run_rl2_training(args):
     train_envs = create_envs(game_files)
     val_envs = create_envs(val_game_files) if val_game_files else []
     
-    # Agent configuration
+    # Agent configuration - support multiple encoder types
     agent_config = config.get("agent", {})
-    distilbert_config = agent_config.get("distilbert", {})
+    encoder_type = agent_config.get("encoder_type", "tinybert")
+    encoder_subconfig = agent_config.get(encoder_type, agent_config.get("tinybert", {}))
     encoder_config = {
-        "model_name": distilbert_config.get("model_name", "distilbert-base-uncased"),
-        "freeze_layers": distilbert_config.get("freeze_layers", 4),
+        "model_name": encoder_subconfig.get("model_name", "huawei-noah/TinyBERT_General_4L_312D"),
+        "freeze_layers": encoder_subconfig.get("freeze_layers", 2),
         "max_length": 512,
-        "hidden_size": distilbert_config.get("hidden_size", 768),
+        "hidden_size": encoder_subconfig.get("hidden_size", 312),
     }
     
     policy_config = agent_config.get("policy", {})

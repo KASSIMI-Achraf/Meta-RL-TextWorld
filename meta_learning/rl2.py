@@ -163,12 +163,23 @@ class RL2:
             trajectory.dones.append(done)
             trajectory.infos.append(info)
             
-            self.agent.update_prev_reward(reward)
+            # Pass done flag for episode boundary awareness
+            self.agent.update_prev_reward(reward, done)
             
             obs = next_obs
         
         return trajectory
 
+    def _build_obs_text(self, observation: dict) -> str:
+        """Build observation text string for encoding."""
+        obs_text = observation.get("text", "")
+        if not obs_text:
+            obs_text = (
+                f"Description: {observation.get('description', '')}\n"
+                f"Inventory: {observation.get('inventory', '')}\n"
+                f"Feedback: {observation.get('feedback', '')}"
+            )
+        return obs_text
     
     def compute_trial_loss(
         self,
@@ -177,6 +188,9 @@ class RL2:
         """
         Compute loss for a complete trial by re-evaluating actions.
         
+        OPTIMIZED: Batch-encodes observations upfront and caches command encodings
+        to avoid expensive encoder calls inside Python loops.
+        
         Args:
             trajectories: Trial trajectories
             
@@ -184,6 +198,8 @@ class RL2:
             loss: Total loss
             metrics: Loss components
         """
+        device = next(self.agent.parameters()).device
+        
         total_policy_loss = 0.0
         total_value_loss = 0.0
         total_entropy = 0.0
@@ -203,30 +219,64 @@ class RL2:
             if len(advantages) > 1:
                 advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
             
-            device = next(self.agent.parameters()).device
             returns = returns.to(device)
             advantages = advantages.to(device)
             
-            # Re-evaluate each step WITH gradients
+            # === BATCH ENCODE ALL OBSERVATIONS UPFRONT ===
+            all_obs_texts = [self._build_obs_text(obs) for obs in traj.observations]
+            all_obs_encodings = self.agent.encoder.encode_batch(all_obs_texts)
+            
+            # === CACHE COMMAND ENCODINGS ===
+            cmd_cache = {}
+            for cmds in traj.admissible_commands:
+                key = tuple(cmds) if cmds else ("look",)
+                if key not in cmd_cache:
+                    cmd_list = list(cmds) if cmds else ["look"]
+                    cmd_cache[key] = self.agent._encode_commands(cmd_list)
+            
+            # Re-evaluate each step WITH gradients (but encodings are cached)
             log_probs_list = []
             values_list = []
             entropies_list = []
             
+            # Build action history and state hash tracking as we re-evaluate
+            action_history = []
+            visited_states = set()
+            
             for t in range(len(traj)):
-                obs = traj.observations[t]
                 cmds = traj.admissible_commands[t]
                 action = traj.actions[t]
+                obs = traj.observations[t]
                 
-                # Re-run through agent to get gradients
-                obs_encoding = self.agent.encode_observation(obs, cmds)
-                cmd_encodings = self.agent._encode_commands(cmds)
+                # Compute state hash for this observation (same as select_action)
+                state_text = f"{obs.get('description', '')}{obs.get('inventory', '')}"
+                state_hash = hash(state_text)
                 
+                # Use pre-computed encodings
+                obs_encoding = all_obs_encodings[t]
+                cmd_key = tuple(cmds) if cmds else ("look",)
+                cmd_encodings = cmd_cache[cmd_key]
+                
+                # Get done flag from previous step (for episode boundary signal)
+                prev_done = traj.dones[t - 1] if t > 0 else False
+                
+                # Temporarily set agent's state hashes for forward_with_hidden
+                self.agent._state_hashes = visited_states
+                
+                # Pass action history and state_hash for loop detection
                 rnn_output, self.agent._hidden_state = self.agent.forward_with_hidden(
                     obs_encoding,
                     self.agent._prev_action,
                     self.agent._prev_reward,
-                    self.agent._hidden_state
+                    self.agent._timestep,
+                    prev_done,
+                    self.agent._hidden_state,
+                    action_history,
+                    state_hash
                 )
+                
+                # Track this state as visited
+                visited_states.add(state_hash)
                 
                 policy_input = self.agent.policy_adapter(rnn_output)
                 value_input = self.agent.value_adapter(rnn_output)
@@ -237,11 +287,14 @@ class RL2:
                 probs = self.agent.policy.command_scorer(policy_input, cmd_encodings)
                 if probs.dim() == 2:
                     probs = probs.squeeze(0)
-                value = self.agent.value.value_net(value_input).squeeze()
+                
+                # Use proper ValueNetwork.forward()
+                value = self.agent.value(value_input)
                 
                 dist = torch.distributions.Categorical(probs)
                 action_tensor = torch.tensor(action, device=device)
-                action_tensor = action_tensor.clamp(0, len(cmds) - 1)
+                cmd_count = len(cmds) if cmds else 1
+                action_tensor = action_tensor.clamp(0, cmd_count - 1)
                 
                 log_prob = dist.log_prob(action_tensor)
                 entropy = dist.entropy()
@@ -250,10 +303,22 @@ class RL2:
                 values_list.append(value)
                 entropies_list.append(entropy)
                 
-                # Update prev action/reward for next step
+                # Update prev action/reward/timestep for next step
                 self.agent._prev_action = action
+                self.agent._timestep += 1
+                
+                # Update action history (mirroring select_action behavior)
+                action_history.append(action)
+                if len(action_history) > self.agent.action_history_len:
+                    action_history = action_history[-self.agent.action_history_len:]
+                
                 if t < len(traj.rewards):
                     self.agent._prev_reward = traj.rewards[t]
+                    # Reset timestep on episode boundary
+                    if traj.dones[t]:
+                        self.agent._timestep = 0
+                        action_history = []  # Reset history on episode boundary
+                        visited_states = set()  # Reset on episode boundary
             
             log_probs = torch.stack(log_probs_list)
             values = torch.stack(values_list)

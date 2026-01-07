@@ -11,7 +11,7 @@ import torch
 import torch.nn as nn
 
 
-class BaseAgent(ABC, nn.Module):
+class BaseAgent(nn.Module, ABC):
     """
     Abstract base class for all agents.
     
@@ -32,9 +32,15 @@ class BaseAgent(ABC, nn.Module):
         """
         Encode a text observation into a fixed-size vector.
         
+        Note: The admissible_commands parameter is provided for agents that
+        may condition state encoding on available actions (e.g., for attention).
+        Most implementations should encode the observation independently and
+        encode commands separately. If your agent ignores admissible_commands
+        in this method, that is the expected default behavior.
+        
         Args:
             observation: Dictionary with 'text', 'description', 'inventory', 'feedback'
-            admissible_commands: List of admissible command strings
+            admissible_commands: List of admissible command strings (may be ignored)
             
         Returns:
             Encoded observation tensor of shape (hidden_size,)
@@ -75,15 +81,22 @@ class BaseAgent(ABC, nn.Module):
         
         Used during policy gradient updates to compute losses.
         
+        WARNING: This interface uses Python lists due to variable-length text
+        and command sets. This forces per-sample loops and prevents vectorized
+        training. For performance-critical training, implementations should:
+        - Batch-encode observations upfront where possible
+        - Cache command encodings for repeated command sets
+        - Consider using padded tensors for fixed-batch operations
+        
         Args:
             observations: List of observation dictionaries
-            admissible_commands_list: List of admissible command lists
+            admissible_commands_list: List of admissible command lists (variable length)
             actions: Action indices tensor of shape (batch_size,)
             
         Returns:
-            log_probs: Log probabilities of actions
-            values: State value estimates
-            entropies: Policy entropies
+            log_probs: Log probabilities of actions (batch_size,)
+            values: State value estimates (batch_size,)
+            entropies: Policy entropies (batch_size,)
         """
         pass
     
@@ -161,16 +174,31 @@ class BaseAgent(ABC, nn.Module):
         """
         Load an agent from a file.
         
+        WARNING: This method uses cls(**config) which assumes the saved config
+        exactly matches the constructor signature. Subclasses that add required
+        arguments should override this method. Consider using from_config() or
+        storing class_name in checkpoints for more robust loading.
+        
         Args:
             path: Path to the saved agent
             device: Device to load the agent to
             
         Returns:
             Loaded agent instance
+            
+        Raises:
+            TypeError: If config doesn't match constructor (subclass mismatch)
         """
         checkpoint = torch.load(path, map_location=device)
         config = checkpoint["config"]
-        agent = cls(**config)
+        try:
+            agent = cls(**config)
+        except TypeError as e:
+            raise TypeError(
+                f"Failed to load agent: config doesn't match {cls.__name__} constructor. "
+                f"Subclasses should override load() if they add required arguments. "
+                f"Original error: {e}"
+            ) from e
         agent.load_state_dict(checkpoint["state_dict"])
         return agent
     
@@ -188,7 +216,12 @@ class BaseAgent(ABC, nn.Module):
         """
         Reset any hidden state (for recurrent agents).
         
-        Override in subclasses that maintain hidden state.
+        IMPORTANT: Recurrent agents (e.g., RL2Agent) MUST override this method
+        to properly reset their hidden state, previous action, reward, and any
+        other episode-dependent state. Failure to properly reset will cause
+        information leakage between tasks/episodes.
+        
+        The default implementation is a no-op for non-recurrent agents.
         """
         pass
 

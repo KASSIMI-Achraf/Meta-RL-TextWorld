@@ -27,6 +27,11 @@ from agents.meta_rl_agent import RL2Agent
 from utils.helpers import load_config
 from meta_learning.rl2 import RL2
 
+# RL2 Imports
+from agents.meta_rl_agent import RL2Agent
+from utils.helpers import load_config
+from meta_learning.rl2 import RL2
+
 
 # ANSI color codes for terminal output
 class Colors:
@@ -128,7 +133,7 @@ def visualize_agent_gameplay(
             max_steps=max_steps,
             use_admissible_commands=True
         )
-        #
+        # No extra wrappers for RL2 as it handles encoding internally
         
     else:
         # SB3 PPO
@@ -165,7 +170,14 @@ def visualize_agent_gameplay(
     if is_rl2:
         raw_env_ref = env
     else:
+        # For SB3, env is wrapped
         raw_env_ref = env.unwrapped if hasattr(env, "unwrapped") else env
+        # Actually our wrappers might hide .unwrapped properly, but let's try to get the base TextWorldEnv
+        # In the SB3 block above, we created raw_env separately but then wrapped it into 'env'.
+        # However, 'env' is what we step. 'raw_env' variable above is local to that block.
+        # We need a unified way to get infos.
+        # TextWorldTrialEnv wraps TextWorldEncodingWrapper which wraps TextWorldEnv.
+        # Accessing .env.env should work
         raw_env_ref = env.env.env
 
     
@@ -183,8 +195,13 @@ def visualize_agent_gameplay(
         
         # Get admissible commands
         if is_rl2:
+             # raw_env_ref is TextWorldEnv, info contains admissible commands usually
+             # But TextWorldEnv.step returns info with 'admissible_commands'
+             # On reset/start, we might need to grab them from info or env
              admissible_commands = info.get("admissible_commands", ["look"])
         else:
+            # SB3 wrappers might strip them or we use the side-channel raw_env (which is hard to sync)
+            # Actually TextWorldEnv stores them in _current_infos
              admissible_commands = raw_env_ref.get_admissible_commands()
         
         # Get game state
@@ -257,6 +274,9 @@ def visualize_agent_gameplay(
         
         # Take action
         if is_rl2:
+             # RL2 agent uses raw action index directly to step TextWorldEnv
+             # But we need to handle return values which are slightly different in raw env vs wrapped
+             # TextWorldEnv: obs, reward, terminated, truncated, info
              obs, reward, terminated, truncated, info = env.step(action_idx)
              agent.update_prev_reward(reward)
         else:

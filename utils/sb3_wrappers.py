@@ -32,6 +32,10 @@ class TextWorldEncodingWrapper(gym.Wrapper):
             self.encoder.to(device)
             self.encoder.eval() # Inference mode
         
+        # Diagnostic: check device of encoder
+        enc_device = next(self.encoder.bert.parameters()).device
+        print(f"DEBUG: TextWorldEncodingWrapper encoder device: {enc_device}")
+        
         # Update observation space
         # Original space has 'text', 'description', etc.
         # We replace/augment with 'obs_encoding'
