@@ -75,7 +75,9 @@ class TextWorldEnv(gym.Env):
             "inventory_bonus": 0.5,
             "time_penalty": -0.1,
             "productive_action": 0.05,
-            "revisit_penalty_scale": 0.1,  # Penalty = (visits - 1) * scale
+            "revisit_penalty_scale": 0.5,  # Penalty = (visits - 1) * scale (increased for loop prevention)
+            "loss_penalty": -5.0,  # Penalty for losing the game
+            "action_repeat_penalty": -0.3,  # Penalty for repeating same action at same location
         }
         if reward_shaping:
             self.shaping_config.update(reward_shaping)
@@ -85,6 +87,7 @@ class TextWorldEnv(gym.Env):
         self._location_visit_counts = defaultdict(int)
         self._seen_inventory_items = set()
         self._last_score = 0
+        self._last_action_at_location = {}  # Track last action per location for loop detection
         
         self._request_infos_arg = request_infos
         self.request_infos = None
@@ -187,6 +190,7 @@ class TextWorldEnv(gym.Env):
         self._location_visit_counts = defaultdict(int)
         self._seen_inventory_items = set()
         self._last_score = infos.get("score", 0)
+        self._last_action_at_location = {}  # Reset action tracking
         
         # Record initial state
         if "description" in infos:
@@ -266,6 +270,10 @@ class TextWorldEnv(gym.Env):
         if won:
             shaped_reward += self.shaping_config["win_bonus"]
         
+        # Loss penalty for losing the game
+        if lost:
+            shaped_reward += self.shaping_config.get("loss_penalty", -5.0)
+        
         description = infos.get("description", "")
         if description:
             # Revisit penalty: scaled by number of times visited minus 1
@@ -275,9 +283,16 @@ class TextWorldEnv(gym.Env):
             self._location_visit_counts[description] += 1
             visits = self._location_visit_counts[description]
             if visits > 1:
-                revisit_penalty = (visits - 1) * self.shaping_config.get("revisit_penalty_scale", 0.0)
+                revisit_penalty = (visits - 1) * self.shaping_config.get("revisit_penalty_scale", 0.5)
                 # Apply penalty (subtract from reward)
                 shaped_reward -= revisit_penalty
+            
+            # Action repeat penalty: penalize doing same action at same location
+            loc_key = description
+            if loc_key in self._last_action_at_location:
+                if self._last_action_at_location[loc_key] == command:
+                    shaped_reward += self.shaping_config.get("action_repeat_penalty", -0.3)
+            self._last_action_at_location[loc_key] = command
         
         if description and description not in self._visited_locations:
             shaped_reward += self.shaping_config["exploration_bonus"]
