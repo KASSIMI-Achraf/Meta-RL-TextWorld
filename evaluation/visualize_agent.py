@@ -89,13 +89,24 @@ def visualize_agent_gameplay(
         
         # Reconstruct RL2 Agent
         agent_config = config.get("agent", {})
-        distilbert_config = agent_config.get("distilbert", {})
-        encoder_config = {
-            "model_name": distilbert_config.get("model_name", "distilbert-base-uncased"),
-            "freeze_layers": distilbert_config.get("freeze_layers", 4),
-            "max_length": 512,
-            "hidden_size": distilbert_config.get("hidden_size", 768),
-        }
+        encoder_type = agent_config.get("encoder_type", "distilbert")
+        
+        if encoder_type == "tinybert":
+            tinybert_config = agent_config.get("tinybert", {})
+            encoder_config = {
+                "model_name": tinybert_config.get("model_name", "huawei-noah/TinyBERT_General_4L_312D"),
+                "freeze_layers": tinybert_config.get("freeze_layers", 2),
+                "max_length": 512,
+                "hidden_size": tinybert_config.get("hidden_size", 312),
+            }
+        else:
+            distilbert_config = agent_config.get("distilbert", {})
+            encoder_config = {
+                "model_name": distilbert_config.get("model_name", "distilbert-base-uncased"),
+                "freeze_layers": distilbert_config.get("freeze_layers", 4),
+                "max_length": 512,
+                "hidden_size": distilbert_config.get("hidden_size", 768),
+            }
         
         policy_config = agent_config.get("policy", {})
         value_config = agent_config.get("value", {})
