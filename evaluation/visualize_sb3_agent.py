@@ -71,14 +71,21 @@ def visualize(args):
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
     print(f"Device: {device}")
 
-    # Create environment - MUST match training setup exactly
-    base_env = TextWorldEnv(
-        game_path=str(game_path),
-        max_steps=75,  # Match training config
-        use_admissible_commands=True,
-        reward_shaping=MILD_REWARD_SHAPING
-    )
-    env = TextWorldEncodingWrapper(base_env, device=device)
+    from stable_baselines3.common.vec_env import DummyVecEnv
+    
+    def make_env():
+        base_env = TextWorldEnv(
+            game_path=str(game_path),
+            max_steps=75,  # Match training config
+            use_admissible_commands=True,
+            reward_shaping=MILD_REWARD_SHAPING
+        )
+        return TextWorldEncodingWrapper(base_env, device=device)
+    
+    vec_env = DummyVecEnv([make_env])
+    
+    # Get underlying env for accessing game info
+    base_env = vec_env.envs[0].env  # TextWorldEnv underneath the wrapper
     
     # Load model
     print("\nLoading model...")
@@ -90,14 +97,14 @@ def visualize(args):
         print(f"EPISODE {ep+1}")
         print(f"{'='*60}")
         
-        obs, info = env.reset()
+        obs = vec_env.reset()  # VecEnv returns just obs, not (obs, info)
         done = False
         steps = 0
         total_reward = 0
         
         # Print initial state
         print(f"\n{base_env._current_infos.get('description', '')}")
-        print(f"\nAdmissible commands: {info.get('admissible_commands', [])}")
+        print(f"\nAdmissible commands: {base_env.get_admissible_commands()}")
         
         while not done:
             # Add delay for readability
@@ -109,12 +116,14 @@ def visualize(args):
             
             # Get command name before stepping
             admissible = base_env.get_admissible_commands()
-            action_idx = int(action)
+            action_idx = int(action[0])  # VecEnv returns array
             command = admissible[action_idx] if action_idx < len(admissible) else "???"
             
-            # Step environment
-            obs, reward, terminated, truncated, info = env.step(action)
-            done = terminated or truncated
+            # Step environment - VecEnv returns (obs, rewards, dones, infos)
+            obs, rewards, dones, infos = vec_env.step(action)
+            reward = rewards[0]
+            done = dones[0]
+            info = infos[0]
             
             total_reward += reward
             steps += 1
@@ -137,7 +146,7 @@ def visualize(args):
                 print(f"Final Reward: {total_reward:.2f}")
                 print(f"{'*'*40}")
     
-    env.close()
+    vec_env.close()
 
 def main():
     parser = argparse.ArgumentParser(description="Visualize SB3 Agent")
