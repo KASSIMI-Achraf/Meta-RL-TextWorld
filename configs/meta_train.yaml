@@ -1,6 +1,6 @@
 # Meta-Training Configuration
 
-algorithm: "maml" 
+algorithm: "rl2" 
 
 meta_learning:
   num_iterations: 1000
@@ -8,19 +8,6 @@ meta_learning:
   meta_batch_size: 2
   
   outer_lr: 0.001
-  
-  inner_lr: 0.01
-  
-  num_inner_steps: 5
-  
-  num_adaptation_episodes: 5
-  
-  num_meta_episodes: 10
-
-maml:
-  first_order: true
-  
-  max_grad_norm: 1.0
 
 rl2:
   hidden_size: 256
@@ -43,7 +30,7 @@ agent:
   
   tinybert:
     model_name: "huawei-noah/TinyBERT_General_4L_312D"
-    freeze_layers: 2  # TinyBERT has 4 layers, freeze first 2
+    freeze_layers: 2
     hidden_size: 312
   
   policy:

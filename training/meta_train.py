@@ -1,7 +1,7 @@
 """
 Meta-Training Script
 
-Entry point for running meta-training with MAML or RL².
+Entry point for running meta-training with RL².
 Handles configuration loading, environment setup, and training loop.
 """
 
@@ -20,8 +20,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 from envs.textworld_env import TextWorldEnv
 from envs.game_generator import generate_games
-from agents.meta_rl_agent import MetaRLAgent, RL2Agent
-from meta_learning.maml import MAML
+from agents.meta_rl_agent import RL2Agent
 from meta_learning.rl2 import RL2
 from utils.logger import Logger
 from utils.helpers import set_seed, get_device, load_config
@@ -34,14 +33,13 @@ class MetaTrainer:
     Handles:
     - Configuration loading
     - Environment/game setup
-    - Algorithm instantiation (MAML or RL²)
+    - RL² algorithm instantiation
     - Training loop with logging and checkpointing
     """
     
     def __init__(
         self,
         config_path: str,
-        algorithm: str = "maml",
         seed: int = 42,
         debug: bool = False
     ):
@@ -50,12 +48,10 @@ class MetaTrainer:
         
         Args:
             config_path: Path to configuration file
-            algorithm: Algorithm to use ("maml" or "rl2")
             seed: Random seed
             debug: Enable debug mode with reduced iterations
         """
         self.config = load_config(config_path)
-        self.algorithm_name = algorithm
         self.seed = seed
         self.debug = debug
         
@@ -118,7 +114,6 @@ class MetaTrainer:
         
         base_dir = Path(output_dir)
         
-        # Generate train, val, test splits using the function-based generator
         generate_games(num_train, base_dir / "train", difficulty, 
                       seed_offset=self.seed, prefix="train_")
         generate_games(num_val, base_dir / "val", difficulty, 
@@ -143,85 +138,56 @@ class MetaTrainer:
         return envs
     
     def setup_agent(self) -> None:
-        """Create and configure the agent based on algorithm and config."""
+        """Create and configure the RL² agent."""
         agent_config = self.config.get("agent", {})
         
-        # Encoder config (DistilBERT)
-        distilbert_config = agent_config.get("distilbert", {})
+        # Encoder config
+        encoder_type = agent_config.get("encoder_type", "tinybert")
+        encoder_subconfig = agent_config.get(encoder_type, agent_config.get("tinybert", {}))
         encoder_config = {
-            "model_name": distilbert_config.get("model_name", "distilbert-base-uncased"),
-            "freeze_layers": distilbert_config.get("freeze_layers", 4),
+            "model_name": encoder_subconfig.get("model_name", "huawei-noah/TinyBERT_General_4L_312D"),
+            "freeze_layers": encoder_subconfig.get("freeze_layers", 2),
             "max_length": 512,
-            "hidden_size": distilbert_config.get("hidden_size", 768),
+            "hidden_size": encoder_subconfig.get("hidden_size", 312),
         }
         
         # Policy/value network config
         policy_config = agent_config.get("policy", {})
         value_config = agent_config.get("value", {})
+        rl2_config = self.config.get("rl2", {})
         
-        if self.algorithm_name == "rl2":
-            # Create RL² agent with recurrent components
-            rl2_config = self.config.get("rl2", {})
-            self.agent = RL2Agent(
-                encoder_config=encoder_config,
-                policy_hidden_sizes=policy_config.get("hidden_sizes", [256, 128]),
-                value_hidden_sizes=value_config.get("hidden_sizes", [256, 128]),
-                hidden_size=encoder_config.get("hidden_size", 768),
-                rnn_hidden_size=rl2_config.get("hidden_size", 256),
-                device=str(self.device)
-            )
-        else:
-            # Create standard meta-RL agent for MAML
-            self.agent = MetaRLAgent(
-                encoder_config=encoder_config,
-                policy_hidden_sizes=policy_config.get("hidden_sizes", [256, 128]),
-                value_hidden_sizes=value_config.get("hidden_sizes", [256, 128]),
-                hidden_size=encoder_config.get("hidden_size", 768),
-                device=str(self.device)
-            )
+        self.agent = RL2Agent(
+            encoder_config=encoder_config,
+            policy_hidden_sizes=policy_config.get("hidden_sizes", [256, 128]),
+            value_hidden_sizes=value_config.get("hidden_sizes", [256, 128]),
+            hidden_size=encoder_config.get("hidden_size", 768),
+            rnn_hidden_size=rl2_config.get("hidden_size", 256),
+            device=str(self.device)
+        )
         
         self.agent.to(self.device)
-        print(f"Created {self.algorithm_name.upper()} agent on {self.device}")
+        print(f"Created RL2 agent on {self.device}")
     
     def setup_algorithm(self) -> None:
-        """Initialize the meta-learning algorithm."""
+        """Initialize the RL² meta-learning algorithm."""
         meta_config = self.config.get("meta_learning", {})
         pg_config = self.config.get("policy_gradient", {})
+        rl2_config = self.config.get("rl2", {})
         
-        if self.algorithm_name == "maml":
-            maml_config = self.config.get("maml", {})
-            self.meta_learner = MAML(
-                agent=self.agent,
-                inner_lr=meta_config.get("inner_lr", 0.01),
-                outer_lr=meta_config.get("outer_lr", 0.001),
-                num_inner_steps=meta_config.get("num_inner_steps", 5),
-                meta_batch_size=meta_config.get("meta_batch_size", 4),
-                num_adaptation_episodes=meta_config.get("num_adaptation_episodes", 5),
-                num_meta_episodes=meta_config.get("num_meta_episodes", 10),
-                first_order=maml_config.get("first_order", False),
-                gamma=pg_config.get("gamma", 0.99),
-                gae_lambda=pg_config.get("gae_lambda", 0.95),
-                entropy_coef=pg_config.get("entropy_coef", 0.01),
-                value_coef=pg_config.get("value_coef", 0.5),
-                max_grad_norm=maml_config.get("max_grad_norm", 1.0),
-                device=str(self.device)
-            )
-        else:  # rl2
-            rl2_config = self.config.get("rl2", {})
-            self.meta_learner = RL2(
-                agent=self.agent,
-                learning_rate=meta_config.get("outer_lr", 0.001),
-                episodes_per_trial=rl2_config.get("episodes_per_trial", 10),
-                meta_batch_size=meta_config.get("meta_batch_size", 4),
-                gamma=pg_config.get("gamma", 0.99),
-                gae_lambda=pg_config.get("gae_lambda", 0.95),
-                entropy_coef=pg_config.get("entropy_coef", 0.01),
-                value_coef=pg_config.get("value_coef", 0.5),
-                max_grad_norm=1.0,
-                device=str(self.device)
-            )
+        self.meta_learner = RL2(
+            agent=self.agent,
+            learning_rate=meta_config.get("outer_lr", 0.001),
+            episodes_per_trial=rl2_config.get("episodes_per_trial", 10),
+            meta_batch_size=meta_config.get("meta_batch_size", 4),
+            gamma=pg_config.get("gamma", 0.99),
+            gae_lambda=pg_config.get("gae_lambda", 0.95),
+            entropy_coef=pg_config.get("entropy_coef", 0.01),
+            value_coef=pg_config.get("value_coef", 0.5),
+            max_grad_norm=1.0,
+            device=str(self.device)
+        )
         
-        print(f"Initialized {self.algorithm_name.upper()} algorithm")
+        print("Initialized RL2 algorithm")
     
     def train(self) -> Dict[str, List[float]]:
         """
@@ -230,11 +196,9 @@ class MetaTrainer:
         Returns:
             Training history
         """
-        # Create environments
         train_envs = self._create_envs(self.train_games)
         val_envs = self._create_envs(self.val_games)
         
-        # Get training config
         train_config = self.config.get("training", {})
         checkpoint_config = self.config.get("checkpoints", {})
         meta_config = self.config.get("meta_learning", {})
@@ -243,7 +207,6 @@ class MetaTrainer:
         if self.debug:
             num_iterations = min(num_iterations, 5)
         
-        # Run meta-training
         history = self.meta_learner.meta_train(
             train_envs=train_envs,
             val_envs=val_envs,
@@ -254,7 +217,6 @@ class MetaTrainer:
             logger=self.logger
         )
         
-        # Clean up
         for env in train_envs + val_envs:
             env.close()
         
@@ -268,18 +230,15 @@ class MetaTrainer:
             Training history
         """
         print("=" * 60)
-        print(f"Meta-Training with {self.algorithm_name.upper()}")
+        print("Meta-Training with RL2")
         print("=" * 60)
         
-        # Setup
         self.setup_environments()
         self.setup_agent()
         self.setup_algorithm()
         
-        # Train
         history = self.train()
         
-        # Log final results
         print("\n" + "=" * 60)
         print("Training Complete!")
         print("=" * 60)
@@ -297,8 +256,6 @@ def main():
     parser = argparse.ArgumentParser(description="Meta-train an RL agent for TextWorld")
     parser.add_argument("--config", type=str, default="configs/meta_train.yaml",
                         help="Path to config file")
-    parser.add_argument("--algorithm", type=str, default="maml",
-                        choices=["maml", "rl2"], help="Meta-learning algorithm")
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
     parser.add_argument("--debug", action="store_true", help="Debug mode")
     
@@ -306,7 +263,6 @@ def main():
     
     trainer = MetaTrainer(
         config_path=args.config,
-        algorithm=args.algorithm,
         seed=args.seed,
         debug=args.debug
     )

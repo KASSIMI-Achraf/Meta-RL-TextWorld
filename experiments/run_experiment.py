@@ -5,8 +5,8 @@ Main entry point for running meta-learning experiments.
 Supports training, evaluation, and adaptation modes.
 
 Usage:
-    # Meta-training with MAML
-    python experiments/run_experiment.py --config configs/meta_train.yaml --mode train --algorithm maml
+    # Meta-training with RL2
+    python experiments/run_experiment.py --config configs/meta_train.yaml --mode train --algorithm rl2
     
     # Evaluate on test games
     python experiments/run_experiment.py --config configs/eval.yaml --mode eval --checkpoint checkpoints/best_model.pt
@@ -53,22 +53,20 @@ def run_training(args):
     if args.algorithm == "rl2":
         return run_rl2_training(args)
     
+    # Default: run RL2 via MetaTrainer
     trainer = MetaTrainer(
         config_path=args.config,
-        algorithm=args.algorithm,
         seed=args.seed,
         debug=args.debug
     )
     
     history = trainer.run()
     
-    # Save training history
     results_dir = PROJECT_ROOT / "results"
     results_dir.mkdir(exist_ok=True)
     
     history_path = results_dir / f"training_history_{args.algorithm}.json"
     with open(history_path, "w") as f:
-        # Convert to serializable format (handle if history is None/empty)
         if history:
              serializable = {k: [float(v) for v in vals] for k, vals in history.items()}
              json.dump(serializable, f, indent=2)
@@ -453,8 +451,8 @@ Examples:
     parser.add_argument("--mode", type=str, default="train",
                         choices=["train", "eval", "adapt"],
                         help="Experiment mode")
-    parser.add_argument("--algorithm", type=str, default="maml",
-                        choices=["maml", "rl2", "sb3"],
+    parser.add_argument("--algorithm", type=str, default="rl2",
+                        choices=["rl2", "sb3"],
                         help="Meta-learning algorithm")
     
     # Configuration

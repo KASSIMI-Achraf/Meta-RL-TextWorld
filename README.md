@@ -1,6 +1,6 @@
 # Meta-Learning for Fast Adaptation in TextWorld
 
-A research project evaluating meta-learning algorithms (MAML, RL²) for fast adaptation in procedurally generated text-based games using [TextWorld](https://github.com/microsoft/TextWorld).
+A research project evaluating meta-learning algorithms (RL²) for fast adaptation in procedurally generated text-based games using [TextWorld](https://github.com/microsoft/TextWorld).
 
 ## Research Question
 
@@ -8,8 +8,7 @@ A research project evaluating meta-learning algorithms (MAML, RL²) for fast ada
 
 ### Key Hypotheses
 1. Meta-learned agents achieve higher rewards with fewer adaptation episodes
-2. MAML provides explicit gradient-based adaptation while RL² adapts implicitly through hidden state
-3. Both approaches outperform random and from-scratch baselines in sample efficiency
+2. RL² outperforms random and from-scratch baselines in sample efficiency
 
 ## Project Structure
 
@@ -27,17 +26,17 @@ meta_textworld/
 ├── agents/                     # Agent implementations
 │   ├── base_agent.py          # Abstract base + random baseline
 │   ├── text_encoder.py        # DistilBERT text encoder
-│   └── meta_rl_agent.py       # Meta-RL agent + RL² variant
+│   └── meta_rl_agent.py       # RL² agent implementation
 │
 ├── meta_learning/              # Meta-learning algorithms
-│   ├── maml.py                # MAML implementation
 │   ├── rl2.py                 # RL² implementation
 │   ├── inner_loop.py          # Task adaptation
 │   └── outer_loop.py          # Meta-optimization
 │
 ├── training/                   # Training scripts
 │   ├── meta_train.py          # Meta-training orchestrator
-│   └── adapt.py               # Fast adaptation
+│   ├── adapt.py               # Fast adaptation
+│   └── train_sb3_single.py    # SB3 baseline training
 │
 ├── evaluation/                 # Evaluation pipeline
 │   ├── evaluate_adaptation.py # Comprehensive evaluation
@@ -85,8 +84,8 @@ pip install -r requirements.txt
 - `torch>=2.0.0` - Deep learning framework
 - `transformers>=4.35.0` - DistilBERT encoder
 - `gymnasium>=0.29.0` - RL environment interface
-- `higher>=0.2.1` - Functional PyTorch for MAML
 - `tensorboard>=2.14.0` - Training visualization
+- `stable-baselines3>=2.0.0` - Standard RL baselines
 
 ## Docker Setup (Windows)
 
@@ -130,7 +129,7 @@ All commands in this README should be run inside the Docker container:
 docker exec -it my-textworld /bin/bash
 
 # Then run commands normally
-python experiments/run_experiment.py --mode train --algorithm maml
+python experiments/run_experiment.py --mode train --algorithm rl2
 ```
 
 ## Quick Start
@@ -150,16 +149,16 @@ This creates:
 ### 2. Meta-Training
 
 ```bash
-# Train with MAML (gradient-based meta-learning)
-python experiments/run_experiment.py --mode train --algorithm maml --config configs/meta_train.yaml
-
 # Train with RL² (context-based meta-learning)
 python experiments/run_experiment.py --mode train --algorithm rl2 --config configs/meta_train.yaml
+
+# Train standard SB3 Baseline
+python experiments/run_experiment.py --mode train --algorithm sb3 --game games/train/train_0000.z8
 ```
 
 For quick testing:
 ```bash
-python experiments/run_experiment.py --mode train --algorithm maml --debug
+python experiments/run_experiment.py --mode train --algorithm rl2 --debug
 ```
 
 ### 3. Evaluate Adaptation
@@ -169,7 +168,7 @@ python experiments/run_experiment.py --mode train --algorithm maml --debug
 python experiments/run_experiment.py \
     --mode eval \
     --checkpoint checkpoints/best_model.pt \
-    --algorithm maml \
+    --algorithm rl2 \
     --compare_baselines
 
 # Results saved to results/evaluation_results.json
@@ -182,35 +181,13 @@ python experiments/run_experiment.py \
 python experiments/run_experiment.py \
     --mode adapt \
     --checkpoint checkpoints/best_model.pt \
+    --algorithm rl2 \
     --game games/test/treasure_hunter_test_0000.z8 \
     --adaptation_episodes 5 \
     --compare_baselines
 ```
 
 ## Algorithms
-
-### MAML (Model-Agnostic Meta-Learning)
-
-MAML learns an initialization of parameters such that a few gradient steps on a new task lead to good performance.
-
-**Key components:**
-- **Inner loop**: K gradient steps on task-specific data
-- **Outer loop**: Optimize initial parameters for fast adaptation
-- **Adaptation**: At test time, take K gradient steps on new task
-
-```python
-# Pseudocode
-for iteration in range(num_iterations):
-    for task in sample_tasks(meta_batch_size):
-        # Inner loop: adapt to task
-        adapted_params = params - lr * grad(loss(task_support_data))
-        
-        # Compute meta-loss with adapted params
-        meta_loss += loss(task_query_data, adapted_params)
-    
-    # Outer loop: update initial params
-    params = params - meta_lr * grad(meta_loss)
-```
 
 ### RL² (Learning to Reinforcement Learn)
 
@@ -233,22 +210,22 @@ for task in tasks:
 
 ## Agent Architecture
 
-### Text Encoding (DistilBERT)
+### Text Encoding (DistilBERT/TinyBERT)
 
-The agent uses DistilBERT to encode text observations:
+The agent uses transformer-based models to encode text observations:
 
 ```
 Observation: "You are in a kitchen. There is a table..."
      │
      ▼
 ┌─────────────────┐
-│   DistilBERT    │  (freezes first 4 layers)
+│   Transformer   │  (frozen layers support)
 │  Tokenizer +    │
-│  Transformer    │
+│  Encoder        │
 └────────┬────────┘
          │
          ▼
-   [CLS] embedding (768-dim)
+   [CLS] embedding
 ```
 
 ### Action Selection
@@ -272,15 +249,16 @@ meta_learning:
   num_iterations: 1000       # Meta-training iterations
   meta_batch_size: 4         # Tasks per batch
   outer_lr: 0.001            # Meta-optimizer learning rate
-  inner_lr: 0.01             # Task adaptation learning rate
-  num_inner_steps: 5         # Gradient steps for adaptation
-  num_adaptation_episodes: 5 # Episodes for adaptation
+  
+rl2:
+  hidden_size: 256
+  episodes_per_trial: 5
 
 agent:
-  encoder_type: "distilbert"
-  distilbert:
-    model_name: "distilbert-base-uncased"
-    freeze_layers: 4
+  encoder_type: "tinybert"
+  tinybert:
+    model_name: "huawei-noah/TinyBERT_General_4L_312D"
+    freeze_layers: 2
 ```
 
 ## Evaluation Metrics
@@ -300,51 +278,11 @@ Each TextWorld game is a **task**:
 | Val | Hyperparameter tuning | 20 games |
 | Test | Final evaluation | 30 games |
 
-Tasks vary in:
-- Map topology (room layout, connections)
-- Object placement
-- Quest structure (goals, required actions)
-
-## Extending the Project
-
-### Adding a New Algorithm
-
-1. Create `meta_learning/your_algorithm.py`
-2. Implement the algorithm with `adapt()` and `meta_train()` methods
-3. Add to `training/meta_train.py` setup logic
-
-### Custom Text Encoder
-
-1. Subclass `TextEncoder` in `agents/text_encoder.py`
-2. Implement `encode()` and `encode_batch()` methods
-3. Update `encoder_type` in config
-
-### Different Game Types
-
-1. Modify `game_generator.py` to support new game types
-2. Use TextWorld's `GameMaker` for custom quests
-
 ## Related Work
 
-- **MAML**: Finn et al., "Model-Agnostic Meta-Learning for Fast Adaptation" (ICML 2017)
 - **RL²**: Duan et al., "RL²: Fast Reinforcement Learning via Slow Reinforcement Learning" (arXiv 2016)
 - **TextWorld**: Côté et al., "TextWorld: A Learning Environment for Text-based Games" (CGW 2018)
 - **KG-A2C**: Ammanabrolu & Hausknecht, "Graph Constrained Reinforcement Learning for Natural Language Action Spaces" (ICLR 2020)
-
-## Limitations
-
-- TextWorld games are simpler than full interactive fiction
-- MAML's second-order gradients are computationally expensive
-- Limited to admissible commands (not free-form text generation)
-- DistilBERT encoding may not capture game-specific semantics
-
-## Possible Extensions
-
-- [ ] Add PEARL (context-based meta-RL with latent task variables)
-- [ ] Curriculum learning over difficulty levels
-- [ ] Pre-train encoder on text game corpora
-- [ ] Multi-modal environments (text + images)
-- [ ] Hierarchical action spaces
 
 ## License
 
@@ -357,6 +295,6 @@ MIT License
   title={Meta-Learning for Fast Adaptation in TextWorld},
   author={KASSIMI Achraf},
   year={2025},
-  url={https://github.com/yourusername/Textworld-MetaRL}
+  url={https://github.com/KASSIMI-Achraf/Meta-RL-TextWorld}
 }
 ```
