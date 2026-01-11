@@ -43,14 +43,16 @@ MILD_REWARD_SHAPING = {
 
 
 class EpisodeLoggerCallback(BaseCallback):
-    """Callback to log episode results."""
+    """Callback to log episode results and stop after consecutive wins."""
     
-    def __init__(self, target_episodes: int, verbose=1):
+    def __init__(self, consecutive_wins_target: int = 10, verbose=1):
         super().__init__(verbose)
-        self.target_episodes = target_episodes
+        self.consecutive_wins_target = consecutive_wins_target
         self.episode_count = 0
         self.episode_rewards = []
         self.episode_wins = []
+        self.consecutive_wins = 0
+        self.max_consecutive_wins = 0
     
     def _on_step(self) -> bool:
         # Check if episode ended
@@ -69,12 +71,20 @@ class EpisodeLoggerCallback(BaseCallback):
                 self.episode_rewards.append(ep_reward)
                 self.episode_wins.append(won)
                 
+                # Track consecutive wins
+                if won:
+                    self.consecutive_wins += 1
+                    self.max_consecutive_wins = max(self.max_consecutive_wins, self.consecutive_wins)
+                else:
+                    self.consecutive_wins = 0
+                
                 # Print episode result
                 status = "WON" if won else "LOST"
-                print(f"Episode {self.episode_count}: {status} | Reward: {ep_reward:.2f}")
+                print(f"Episode {self.episode_count}: {status} | Reward: {ep_reward:.2f} | Consecutive Wins: {self.consecutive_wins}")
                 
-                # Stop if we've reached target episodes
-                if self.episode_count >= self.target_episodes:
+                # Stop if we've reached target consecutive wins
+                if self.consecutive_wins >= self.consecutive_wins_target:
+                    print(f"\n*** TARGET REACHED: {self.consecutive_wins} consecutive wins! ***")
                     return False
         
         return True
@@ -88,7 +98,8 @@ class EpisodeLoggerCallback(BaseCallback):
         print("TRAINING SUMMARY")
         print("=" * 60)
         print(f"Total Episodes: {self.episode_count}")
-        print(f"Wins: {total_wins} ({100*total_wins/max(1,self.episode_count):.1f}%)")
+        print(f"Total Wins: {total_wins} ({100*total_wins/max(1,self.episode_count):.1f}%)")
+        print(f"Max Consecutive Wins: {self.max_consecutive_wins}")
         print(f"Average Reward: {avg_reward:.2f}")
 
 
@@ -130,7 +141,7 @@ def train(args):
     
     game_path = str(game_path.absolute())
     print(f"Game: {game_path}")
-    print(f"Target Episodes: {args.episodes}")
+    print(f"Target: {args.consecutive_wins} consecutive wins")
     
     # Device setup
     num_gpus = torch.cuda.device_count()
@@ -160,12 +171,12 @@ def train(args):
     )
     
     # Create callback
-    callback = EpisodeLoggerCallback(target_episodes=args.episodes)
+    callback = EpisodeLoggerCallback(consecutive_wins_target=args.consecutive_wins)
     
-    # Training - use a large number of timesteps, callback will stop when episodes reached
-    print(f"\nStarting training...\n")
+    # Training - run until consecutive wins target is reached
+    print(f"\nStarting training (target: {args.consecutive_wins} consecutive wins)...\n")
     model.learn(
-        total_timesteps=args.episodes * 200,  
+        total_timesteps=10_000_000,  # Large limit, callback will stop early
         callback=callback,
         progress_bar=False
     )
@@ -197,10 +208,10 @@ def main():
         help="Path to the TextWorld game file (.z8)"
     )
     parser.add_argument(
-        "--episodes", 
+        "--consecutive_wins", 
         type=int, 
-        default=50,
-        help="Number of training episodes (default: 50)"
+        default=10,
+        help="Stop after this many consecutive wins (default: 10)"
     )
     parser.add_argument(
         "--lr", 
