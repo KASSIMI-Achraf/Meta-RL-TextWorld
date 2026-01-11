@@ -28,17 +28,17 @@ from utils.sb3_wrappers import TextWorldEncodingWrapper
 from agents.sb3_policy import TextWorldDistilBertPolicy
 
 
-# Mild reward shaping configuration
-MILD_REWARD_SHAPING = {
-    "win_bonus": 50.0,
-    "score_multiplier": 10.0,
-    "exploration_bonus": 0.2,
-    "inventory_bonus": 0.5,
-    "time_penalty": -0.01,
-    "productive_action": 0.05,
-    "revisit_penalty_scale": 0.003, # Drastically reduced (was 0.1) to prevent -200 loops
-    "loss_penalty": -1.0,
-    "action_repeat_penalty": -0.05,
+# Stronger reward shaping to help model learn faster
+REWARD_SHAPING = {
+    "win_bonus": 100.0,              # Strong win bonus
+    "score_multiplier": 20.0,        # Strong score reward
+    "exploration_bonus": 0.5,        # Bonus for new locations
+    "inventory_bonus": 1.0,          # Bonus for new items
+    "time_penalty": -0.01,           # Mild time penalty
+    "productive_action": 0.2,        # Bonus for state-changing actions
+    "revisit_penalty_scale": 0.1,    # Mild revisit penalty
+    "loss_penalty": -5.0,            # Stronger loss penalty
+    "action_repeat_penalty": -0.5,   # Strong repeat penalty to break loops
 }
 
 
@@ -112,7 +112,7 @@ def make_env(game_path: str, device: str):
             game_path=game_path,
             max_steps=75,
             use_admissible_commands=True,
-            reward_shaping=MILD_REWARD_SHAPING
+            reward_shaping=REWARD_SHAPING
         )
         
         env = TextWorldEncodingWrapper(env, device=device)
@@ -210,8 +210,8 @@ def main():
     parser.add_argument(
         "--consecutive_wins", 
         type=int, 
-        default=10,
-        help="Stop after this many consecutive wins (default: 10)"
+        default=25,
+        help="Stop after this many consecutive wins (default: 25)"
     )
     parser.add_argument(
         "--lr", 
