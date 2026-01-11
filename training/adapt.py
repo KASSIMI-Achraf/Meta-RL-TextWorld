@@ -48,6 +48,21 @@ class Adapter:
     
     def _load_checkpoint(self):
         """Load the meta-trained checkpoint."""
+        path = Path(self.checkpoint_path)
+        
+        # Handle directory input
+        if path.is_dir():
+            if (path / "best_model.pt").exists():
+                path = path / "best_model.pt"
+            else:
+                pt_files = list(path.glob("*.pt"))
+                if pt_files:
+                    path = pt_files[0]
+                    print(f"No best_model.pt found, using {path.name} instead.")
+                else:
+                    raise FileNotFoundError(f"No .pt checkpoint found in {path}")
+            self.checkpoint_path = str(path)
+
         self.agent = RL2Agent(device=str(self.device))
         self.meta_learner = RL2.load(
             self.checkpoint_path,
