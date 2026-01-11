@@ -153,7 +153,8 @@ class Adapter:
         self,
         game_path: str,
         num_adaptation_episodes: int = 5,
-        num_eval_episodes: int = 10
+        num_eval_episodes: int = 10,
+        baseline_checkpoint: Optional[str] = None
     ) -> Dict[str, Dict[str, float]]:
         """Compare meta-learned agent with baselines."""
         results = {}
@@ -169,6 +170,53 @@ class Adapter:
             "success_rate": meta_result["eval_success_rate"],
         }
         
+        # SB3 Baseline
+        if baseline_checkpoint and os.path.exists(baseline_checkpoint):
+            try:
+                from stable_baselines3 import PPO
+                from utils.sb3_wrappers import TextWorldEncodingWrapper, TextWorldTrialEnv
+                
+                print(f"Loading baseline from {baseline_checkpoint}")
+                env = TextWorldEnv(game_path, max_steps=100, use_admissible_commands=True)
+                # Wrap environment as expected by SB3 policy
+                env = TextWorldEncodingWrapper(env, device=str(self.device))
+                # Note: TrialEnv might add observation keys needed by extractor
+                env = TextWorldTrialEnv(env, episodes_per_trial=1) 
+                
+                model = PPO.load(baseline_checkpoint, device=str(self.device))
+                
+                # Evaluate baseline
+                # We typically don't "adapt" standard PPO, just run evaluation
+                rewards = []
+                successes = []
+                
+                for _ in range(num_eval_episodes):
+                    obs, _ = env.reset()
+                    done = False
+                    total_reward = 0
+                    won = False
+                    
+                    while not done:
+                        action, _ = model.predict(obs, deterministic=True)
+                        obs, reward, terminated, truncated, info = env.step(action)
+                        done = terminated or truncated
+                        total_reward += reward
+                        if info.get("won", False):
+                            won = True
+                    
+                    rewards.append(total_reward)
+                    successes.append(won)
+                
+                results["baseline"] = {
+                    "mean_reward": np.mean(rewards),
+                    "success_rate": np.mean(successes),
+                }
+                env.close()
+                del model
+            except Exception as e:
+                print(f"Error evaluating baseline: {e}")
+
+        # Random Baseline
         env = TextWorldEnv(game_path, use_admissible_commands=True)
         random_agent = RandomAgent()
         random_trajectories = collect_trajectories(random_agent, env, num_eval_episodes)

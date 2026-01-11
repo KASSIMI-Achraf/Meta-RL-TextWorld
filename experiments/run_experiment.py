@@ -387,7 +387,8 @@ def run_adaptation(args):
             results = adapter.compare_with_baselines(
                 str(game_path),
                 num_adaptation_episodes=args.adaptation_episodes,
-                num_eval_episodes=args.eval_episodes
+                num_eval_episodes=args.eval_episodes,
+                baseline_checkpoint=args.baseline_checkpoint
             )
             
             print("\nComparison Results:")
@@ -477,8 +478,10 @@ Examples:
     # Adaptation
     parser.add_argument("--game", type=str, default=None,
                         help="Path to game file for adaptation")
-    parser.add_argument("--adaptation_episodes", type=int, default=5,
+    parser.add_argument("--adaptation_episodes", type=int, default=100,
                         help="Number of adaptation episodes")
+    parser.add_argument("--baseline_checkpoint", type=str, default=None,
+                        help="Path to baseline checkpoint for comparison")
     parser.add_argument("--eval_episodes", type=int, default=10,
                         help="Number of evaluation episodes")
     
