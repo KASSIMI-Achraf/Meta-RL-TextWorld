@@ -118,8 +118,8 @@ def visualize(args):
             if args.delay > 0:
                 time.sleep(args.delay)
             
-            # Predict action - also get action probabilities for debugging
-            action, _states = model.predict(obs, deterministic=True)
+            # Predict action - use stochastic sampling like training (not deterministic)
+            action, _states = model.predict(obs, deterministic=False)
             
             # Debug: Get action distribution
             with torch.no_grad():
