@@ -368,8 +368,7 @@ def run_adaptation(args):
     print("=" * 60)
     
     adapter = Adapter(
-        checkpoint_path=args.checkpoint,
-        algorithm=args.algorithm
+        checkpoint_path=args.checkpoint
     )
     
     game_path = Path(args.game)
