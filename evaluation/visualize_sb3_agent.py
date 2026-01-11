@@ -17,12 +17,28 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
+import numpy as np
 import torch
 from stable_baselines3 import PPO
 
 from envs.textworld_env import TextWorldEnv
 from utils.sb3_wrappers import TextWorldEncodingWrapper
 from agents.sb3_policy import TextWorldDistilBertPolicy
+
+
+# Must match training config exactly
+MILD_REWARD_SHAPING = {
+    "win_bonus": 50.0,
+    "score_multiplier": 10.0,
+    "exploration_bonus": 0.2,
+    "inventory_bonus": 0.5,
+    "time_penalty": -0.01,
+    "productive_action": 0.05,
+    "revisit_penalty_scale": 0.1,
+    "loss_penalty": -1.0,
+    "action_repeat_penalty": -0.05,
+}
+
 
 def visualize(args):
     print("=" * 60)
@@ -55,16 +71,14 @@ def visualize(args):
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
     print(f"Device: {device}")
 
-    # Create environment
-    # Note: We use the same wrappers as training to ensure observation compatibility
-    env = TextWorldEnv(
+    # Create environment - MUST match training setup exactly
+    base_env = TextWorldEnv(
         game_path=str(game_path),
-        max_steps=72,  # Match training config
+        max_steps=75,  # Match training config
         use_admissible_commands=True,
-        request_infos=None, # Use default infos
-        render_mode="human"
+        reward_shaping=MILD_REWARD_SHAPING
     )
-    env = TextWorldEncodingWrapper(env, device=device)
+    env = TextWorldEncodingWrapper(base_env, device=device)
     
     # Load model
     print("\nLoading model...")
@@ -72,21 +86,31 @@ def visualize(args):
     
     # Run episodes
     for ep in range(args.episodes):
-        print(f"\n\n--- EPISODE {ep+1} ---")
-        obs, _ = env.reset()
+        print(f"\n\n{'='*60}")
+        print(f"EPISODE {ep+1}")
+        print(f"{'='*60}")
+        
+        obs, info = env.reset()
         done = False
         steps = 0
         total_reward = 0
         
         # Print initial state
-        env.unwrapped.render()
+        print(f"\n{base_env._current_infos.get('description', '')}")
+        print(f"\nAdmissible commands: {info.get('admissible_commands', [])}")
         
         while not done:
             # Add delay for readability
-            time.sleep(1.0)
+            if args.delay > 0:
+                time.sleep(args.delay)
             
             # Predict action
             action, _states = model.predict(obs, deterministic=True)
+            
+            # Get command name before stepping
+            admissible = base_env.get_admissible_commands()
+            action_idx = int(action)
+            command = admissible[action_idx] if action_idx < len(admissible) else "???"
             
             # Step environment
             obs, reward, terminated, truncated, info = env.step(action)
@@ -97,15 +121,21 @@ def visualize(args):
             
             # Print feedback
             print("-" * 40)
-            print(f"Step: {steps} | Reward: {reward:.2f}")
-            print(f"Command: > {info.get('command', '???')}")
+            print(f"Step {steps}: > {command}")
+            print(f"Reward: {reward:.2f} (Total: {total_reward:.2f})")
             print("-" * 40)
-            print(info.get('feedback', ''))
+            # Get feedback from underlying env
+            feedback = base_env._current_obs if base_env._current_obs else ""
+            if feedback:
+                print(feedback[:500])  # Truncate long feedback
             
             if done:
-                print(f"\nGame Over! Result: {'WON' if info.get('won') else 'LOST'}")
+                won = info.get('won', False)
+                print(f"\n{'*'*40}")
+                print(f"GAME OVER: {'WON!' if won else 'LOST'}")
                 print(f"Total Steps: {steps}")
-                print(f"Total Reward: {total_reward:.2f}")
+                print(f"Final Reward: {total_reward:.2f}")
+                print(f"{'*'*40}")
     
     env.close()
 
@@ -114,6 +144,7 @@ def main():
     parser.add_argument("--game", type=str, required=True, help="Path to game file")
     parser.add_argument("--model", type=str, required=True, help="Path to trained model checkpoint")
     parser.add_argument("--episodes", type=int, default=1, help="Number of episodes to play")
+    parser.add_argument("--delay", type=float, default=0.5, help="Delay between steps in seconds")
     
     args = parser.parse_args()
     visualize(args)
