@@ -7,11 +7,10 @@ being overly punitive.
 
 Usage:
     python training/train_sb3_single.py --game games/train/train_0000.z8
-    python training/train_sb3_single.py --game games/train/train_0000.z8 --timesteps 50000
+    python training/train_sb3_single.py --game games/train/train_0000.z8 --episodes 100
 """
 
 import argparse
-import os
 import sys
 from pathlib import Path
 
@@ -22,43 +21,94 @@ sys.path.insert(0, str(PROJECT_ROOT))
 import torch
 from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import DummyVecEnv
-from stable_baselines3.common.monitor import Monitor
+from stable_baselines3.common.callbacks import BaseCallback
 
 from envs.textworld_env import TextWorldEnv
-from utils.sb3_wrappers import TextWorldEncodingWrapper, TextWorldTrialEnv
+from utils.sb3_wrappers import TextWorldEncodingWrapper
 from agents.sb3_policy import TextWorldDistilBertPolicy
 
 
 # Mild reward shaping configuration
 MILD_REWARD_SHAPING = {
-    "win_bonus": 50.0,           # Keep win bonus high
-    "score_multiplier": 10.0,    # Keep score reward high
-    "exploration_bonus": 0.2,    # Slightly higher exploration bonus
-    "inventory_bonus": 0.5,      # Keep inventory bonus
-    "time_penalty": -0.01,       # Much milder time penalty (was -0.1)
-    "productive_action": 0.05,   # Keep productive action bonus
-    "revisit_penalty_scale": 0.1, # Much milder revisit penalty (was 0.5)
-    "loss_penalty": -1.0,        # Much milder loss penalty (was -5.0)
-    "action_repeat_penalty": -0.05,  # Much milder repeat penalty (was -0.3)
+    "win_bonus": 50.0,
+    "score_multiplier": 10.0,
+    "exploration_bonus": 0.2,
+    "inventory_bonus": 0.5,
+    "time_penalty": -0.01,
+    "productive_action": 0.05,
+    "revisit_penalty_scale": 0.1,
+    "loss_penalty": -1.0,
+    "action_repeat_penalty": -0.05,
 }
 
 
-def make_env(game_path: str, device: str, rank: int = 0):
+class EpisodeLoggerCallback(BaseCallback):
+    """Callback to log episode results."""
+    
+    def __init__(self, target_episodes: int, verbose=1):
+        super().__init__(verbose)
+        self.target_episodes = target_episodes
+        self.episode_count = 0
+        self.episode_rewards = []
+        self.episode_wins = []
+    
+    def _on_step(self) -> bool:
+        # Check if episode ended
+        for i, done in enumerate(self.locals.get("dones", [])):
+            if done:
+                self.episode_count += 1
+                
+                # Get info from the environment
+                infos = self.locals.get("infos", [])
+                info = infos[i] if i < len(infos) else {}
+                
+                # Get episode reward from monitor wrapper
+                ep_reward = info.get("episode", {}).get("r", 0)
+                won = info.get("won", False)
+                
+                self.episode_rewards.append(ep_reward)
+                self.episode_wins.append(won)
+                
+                # Print episode result
+                status = "WON" if won else "LOST"
+                print(f"Episode {self.episode_count}: {status} | Reward: {ep_reward:.2f}")
+                
+                # Stop if we've reached target episodes
+                if self.episode_count >= self.target_episodes:
+                    return False
+        
+        return True
+    
+    def _on_training_end(self):
+        # Print summary
+        total_wins = sum(self.episode_wins)
+        avg_reward = sum(self.episode_rewards) / len(self.episode_rewards) if self.episode_rewards else 0
+        
+        print("\n" + "=" * 60)
+        print("TRAINING SUMMARY")
+        print("=" * 60)
+        print(f"Total Episodes: {self.episode_count}")
+        print(f"Wins: {total_wins} ({100*total_wins/max(1,self.episode_count):.1f}%)")
+        print(f"Average Reward: {avg_reward:.2f}")
+
+
+def make_env(game_path: str, device: str):
     """Create a training environment with mild reward shaping."""
     def _init():
+        from stable_baselines3.common.monitor import Monitor
+        
         env = TextWorldEnv(
             game_path=game_path,
-            max_steps=100,
+            max_steps=75,
             use_admissible_commands=True,
             reward_shaping=MILD_REWARD_SHAPING
         )
         
         env = TextWorldEncodingWrapper(env, device=device)
-        env = TextWorldTrialEnv(env, episodes_per_trial=10)
         
         log_dir = PROJECT_ROOT / "logs" / "sb3_single"
         log_dir.mkdir(parents=True, exist_ok=True)
-        env = Monitor(env, filename=str(log_dir / f"monitor_{rank}"))
+        env = Monitor(env, filename=str(log_dir / "monitor"))
         
         return env
     return _init
@@ -67,13 +117,12 @@ def make_env(game_path: str, device: str, rank: int = 0):
 def train(args):
     """Run training."""
     print("=" * 60)
-    print("SB3 PPO SINGLE GAME TRAINING (MILD PENALTIES)")
+    print("SB3 PPO SINGLE GAME TRAINING")
     print("=" * 60)
     
     # Check if game exists
     game_path = Path(args.game)
     if not game_path.exists():
-        # Try relative to project root
         game_path = PROJECT_ROOT / args.game
         if not game_path.exists():
             print(f"Error: Game file not found: {args.game}")
@@ -81,6 +130,7 @@ def train(args):
     
     game_path = str(game_path.absolute())
     print(f"Game: {game_path}")
+    print(f"Target Episodes: {args.episodes}")
     
     # Device setup
     num_gpus = torch.cuda.device_count()
@@ -88,7 +138,7 @@ def train(args):
     print(f"Device: {device}")
     
     # Print reward shaping config
-    print("\nReward Shaping (Mild Penalties):")
+    print("\nReward Shaping:")
     for key, value in MILD_REWARD_SHAPING.items():
         print(f"  {key}: {value}")
     
@@ -101,7 +151,7 @@ def train(args):
     model = PPO(
         TextWorldDistilBertPolicy,
         env,
-        verbose=1,
+        verbose=0,  # Reduce SB3 verbosity
         learning_rate=args.lr,
         n_steps=128,
         batch_size=64,
@@ -109,29 +159,35 @@ def train(args):
         tensorboard_log=str(PROJECT_ROOT / "logs" / "sb3_single_tensorboard")
     )
     
-    # Training
-    print(f"\nStarting training for {args.timesteps} timesteps...")
-    model.learn(total_timesteps=args.timesteps, progress_bar=True)
+    # Create callback
+    callback = EpisodeLoggerCallback(target_episodes=args.episodes)
+    
+    # Training - use a large number of timesteps, callback will stop when episodes reached
+    print(f"\nStarting training...\n")
+    model.learn(
+        total_timesteps=args.episodes * 200,  
+        callback=callback,
+        progress_bar=False
+    )
     
     # Save model
     save_dir = PROJECT_ROOT / "checkpoints"
     save_dir.mkdir(parents=True, exist_ok=True)
     
     game_name = Path(game_path).stem
-    save_path = save_dir / f"sb3_ppo_{game_name}_mild"
+    save_path = save_dir / f"sb3_ppo_{game_name}"
     model.save(str(save_path))
     print(f"\nModel saved to: {save_path}")
     
     # Cleanup
     env.close()
     
-    print("\nTraining complete!")
     return model
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Train SB3 PPO on a single TextWorld game with mild penalties"
+        description="Train SB3 PPO on a single TextWorld game"
     )
     
     parser.add_argument(
@@ -141,10 +197,10 @@ def main():
         help="Path to the TextWorld game file (.z8)"
     )
     parser.add_argument(
-        "--timesteps", 
+        "--episodes", 
         type=int, 
-        default=10000,
-        help="Total training timesteps (default: 10000)"
+        default=50,
+        help="Number of training episodes (default: 50)"
     )
     parser.add_argument(
         "--lr", 
