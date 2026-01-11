@@ -23,7 +23,6 @@ sys.path.insert(0, str(PROJECT_ROOT))
 from envs.textworld_env import TextWorldEnv
 from agents.meta_rl_agent import MetaRLAgent, RL2Agent
 from agents.base_agent import RandomAgent
-from meta_learning.maml import MAML
 from meta_learning.rl2 import RL2
 from meta_learning.inner_loop import collect_trajectories
 from .metrics import (
