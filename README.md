@@ -1,6 +1,6 @@
 # Meta-Learning for Fast Adaptation in TextWorld
 
-A research project evaluating meta-learning algorithms (RL²) for fast adaptation in procedurally generated text-based games using [TextWorld](https://github.com/microsoft/TextWorld).
+A project evaluating meta-learning algorithms (RL²) for fast adaptation in procedurally generated text-based games using [TextWorld](https://github.com/microsoft/TextWorld).
 
 ## Question
 
