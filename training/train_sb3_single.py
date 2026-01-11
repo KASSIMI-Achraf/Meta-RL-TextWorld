@@ -36,7 +36,7 @@ MILD_REWARD_SHAPING = {
     "inventory_bonus": 0.5,
     "time_penalty": -0.01,
     "productive_action": 0.05,
-    "revisit_penalty_scale": 0.1,
+    "revisit_penalty_scale": 0.003, # Drastically reduced (was 0.1) to prevent -200 loops
     "loss_penalty": -1.0,
     "action_repeat_penalty": -0.05,
 }
