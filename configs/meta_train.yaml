@@ -32,7 +32,7 @@ policy_gradient:
   
   gae_lambda: 0.95
   
-  entropy_coef: 0.05  # Increased for exploration (prevent loops)
+  entropy_coef: 0.05  
   
   value_coef: 0.5
   

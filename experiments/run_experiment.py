@@ -103,10 +103,15 @@ def run_sb3_training(args):
     from stable_baselines3.common.vec_env import DummyVecEnv
     from agents.text_encoder import DistilBERTEncoder
 
-    game_files = sorted(glob.glob(str(PROJECT_ROOT / "games/train/*.z8")))
-    if not game_files:
-        print(f"No games found in {PROJECT_ROOT / 'games/train'}, using fallback.")
-        game_files = [str(PROJECT_ROOT / "games/train/train_0000.z8")] 
+    
+    if args.game:
+        game_files = [args.game]
+        print(f"Using single game: {args.game}")
+    else:
+        game_files = sorted(glob.glob(str(PROJECT_ROOT / "games/train/*.z8")))
+        if not game_files:
+            print(f"No games found in {PROJECT_ROOT / 'games/train'}, using fallback.")
+            game_files = [str(PROJECT_ROOT / "games/train/train_0000.z8")] 
     
     print(f"Found {len(game_files)} training games.")
     
