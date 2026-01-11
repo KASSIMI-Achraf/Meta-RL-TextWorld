@@ -150,7 +150,7 @@ def train(args):
     
     # Print reward shaping config
     print("\nReward Shaping:")
-    for key, value in MILD_REWARD_SHAPING.items():
+    for key, value in REWARD_SHAPING.items():
         print(f"  {key}: {value}")
     
     # Create environment
