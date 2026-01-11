@@ -32,7 +32,7 @@ REWARD_SHAPING = {
     "score_multiplier": 20.0,
     "exploration_bonus": 0.5,
     "inventory_bonus": 1.0,
-    "time_penalty": -0.01,
+    "time_penalty": -0.1,
     "productive_action": 0.2,
     "revisit_penalty_scale": 0.1,
     "loss_penalty": -5.0,

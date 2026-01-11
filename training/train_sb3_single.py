@@ -34,7 +34,7 @@ REWARD_SHAPING = {
     "score_multiplier": 20.0,        # Strong score reward
     "exploration_bonus": 0.5,        # Bonus for new locations
     "inventory_bonus": 1.0,          # Bonus for new items
-    "time_penalty": -0.01,           # Mild time penalty
+    "time_penalty": -0.1,           # Stronger time penalty to encourage efficiency
     "productive_action": 0.2,        # Bonus for state-changing actions
     "revisit_penalty_scale": 0.1,    # Mild revisit penalty
     "loss_penalty": -5.0,            # Stronger loss penalty
