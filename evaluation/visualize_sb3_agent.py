@@ -91,16 +91,23 @@ def visualize(args):
     print("\nLoading model...")
     model = PPO.load(model_path, device=device)
     
+    # Debug: print observation space info
+    print(f"\nDEBUG - Model observation space: {model.observation_space}")
+    print(f"DEBUG - Env observation space: {vec_env.observation_space}")
+    
     # Run episodes
     for ep in range(args.episodes):
         print(f"\n\n{'='*60}")
         print(f"EPISODE {ep+1}")
         print(f"{'='*60}")
         
-        obs = vec_env.reset()  # VecEnv returns just obs, not (obs, info)
+        obs = vec_env.reset()  
         done = False
         steps = 0
         total_reward = 0
+        
+        # Debug: Print observation keys on first step
+        print(f"\nDEBUG - Observation keys: {obs.keys() if isinstance(obs, dict) else type(obs)}")
         
         # Print initial state
         print(f"\n{base_env._current_infos.get('description', '')}")
@@ -111,13 +118,24 @@ def visualize(args):
             if args.delay > 0:
                 time.sleep(args.delay)
             
-            # Predict action
+            # Predict action - also get action probabilities for debugging
             action, _states = model.predict(obs, deterministic=True)
+            
+            # Debug: Get action distribution
+            with torch.no_grad():
+                obs_tensor = {k: torch.as_tensor(v).to(device) for k, v in obs.items()}
+                dist = model.policy.get_distribution(obs_tensor)
+                probs = dist.distribution.probs[0].cpu().numpy()
+                top_actions = np.argsort(probs)[-5:][::-1]  # Top 5 actions
             
             # Get command name before stepping
             admissible = base_env.get_admissible_commands()
             action_idx = int(action[0])  # VecEnv returns array
             command = admissible[action_idx] if action_idx < len(admissible) else "???"
+            
+            # Debug: show action probabilities (first few steps only)
+            if steps < 5:
+                print(f"DEBUG - Action probs (top 5): {[(admissible[i] if i < len(admissible) else '?', f'{probs[i]:.3f}') for i in top_actions]}")
             
             # Step environment - VecEnv returns (obs, rewards, dones, infos)
             obs, rewards, dones, infos = vec_env.step(action)
